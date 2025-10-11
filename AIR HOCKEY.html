@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Hockey HD</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a2e;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+        #menu {
+            text-align: center;
+        }
+        #menu h1 {
+            font-size: 3em;
+            color: #00d4ff;
+            margin-bottom: 2em;
+            text-shadow: 0 0 10px #00d4ff;
+        }
+        button {
+            background-color: #16213e;
+            color: #fff;
+            border: 2px solid #00d4ff;
+            padding: 1em 2em;
+            margin: 0.5em;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background-color: #00d4ff;
+            color: #16213e;
+            box-shadow: 0 0 15px #00d4ff;
+        }
+        #instructionsDiv {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #16213e;
+            padding: 2em;
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            text-align: left;
+            max-width: 400px;
+        }
+        #instructionsDiv button {
+            margin-top: 1em;
+        }
+        #gameCanvas {
+            border: 2px solid #00d4ff;
+            background-color: #0f3460;
+            display: none;
+            cursor: none; /* Cursor oculto en modo IA */
+        }
+        #endGame {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background-color: #16213e;
+            padding: 2em;
+            border: 2px solid #00d4ff;
+            border-radius: 10px;
+            display: none;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2em;
+            color: #fff;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1>Air Hockey HD</h1>
+        <button id="vsAI">Jugar vs IA</button>
+        <button id="twoPlayers">2 Jugadores</button>
+        <button id="instructions">Instrucciones</button>
+    </div>
+
+    <div id="instructionsDiv">
+        <h2>Instrucciones</h2>
+        <p><strong>Modo vs IA o 2 Jugadores:</strong></p>
+        <ul>
+            <li>Jugador 1 (izquierda, azul): Mueve la paleta con el ratón en tu mitad del campo.</li>
+            <li>En modo 2 Jugadores: Jugador 2 (derecha, roja) usa las flechas del teclado (↑↓←→) en su mitad del campo.</li>
+            <li>El objetivo es meter el disco en la portería vertical del oponente.</li>
+            <li>No se puede cruzar la línea central.</li>
+            <li>Primer que llegue a 7 puntos gana, o al final del tiempo (3 minutos).</li>
+        </ul>
+        <button id="closeInstructions">Cerrar</button>
+    </div>
+
+    <div id="score">0 - 0</div>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+
+    <div id="endGame">
+        <p id="endMessage"></p>
+        <button id="backToMenu">Volver al Menú</button>
+    </div>
+
+    <script>
+        // Variables globales del juego
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const menu = document.getElementById('menu');
+        const instructionsDiv = document.getElementById('instructionsDiv');
+        const endGame = document.getElementById('endGame');
+        const scoreElement = document.getElementById('score');
+
+        // Estado del juego
+        let gameState = 'menu'; // 'menu', 'playing', 'end'
+        let mode = ''; // 'ai' o 'twoPlayers'
+        let score = [0, 0]; // [jugador1 izquierda, jugador2/IA derecha]
+        let puck = { x: canvas.width / 2, y: canvas.height / 2, vx: 0, vy: 0, radius: 8 };
+        let paddle1 = { x: 100, y: canvas.height / 2, radius: 25 }; // Jugador 1 izquierda
+        let paddle2 = { x: canvas.width - 100, y: canvas.height / 2, radius: 25 }; // Jugador 2 o IA derecha
+        let keys = {}; // Para controles de teclado
+        let gameStartTime = 0;
+        const MAX_TIME = 180; // 3 minutos en segundos
+
+        // Constantes del juego
+        const FIELD_WIDTH = canvas.width;
+        const FIELD_HEIGHT = canvas.height;
+        const MID_FIELD = FIELD_WIDTH / 2;
+        const PUCK_SPEED = 6; // Velocidad del puck
+        const PADDLE_SPEED = 4; // Velocidad de movimiento
+        const GOAL_WIDTH = 120; // Alto de la portería vertical
+        const goalYStart = (FIELD_HEIGHT - GOAL_WIDTH) / 2;
+        const goalYEnd = goalYStart + GOAL_WIDTH;
+
+        // Para IA más realista
+        let aiTargetX = 0;
+        let aiTargetY = 0;
+        let aiPredictionSteps = 10; // Pasos para predecir posición del puck
+        let retreatCounter = 0; // Contador para retrocesos ocasionales
+        let lastAITime = 0; // Para limitar actualizaciones de IA y evitar temblor
+
+        // Event listeners
+        document.getElementById('vsAI').addEventListener('click', () => startGame('ai'));
+        document.getElementById('twoPlayers').addEventListener('click', () => startGame('twoPlayers'));
+        document.getElementById('instructions').addEventListener('click', () => showInstructions());
+        document.getElementById('closeInstructions').addEventListener('click', () => hideInstructions());
+        document.getElementById('backToMenu').addEventListener('click', () => backToMenu());
+
+        // Controles de ratón para Jugador 1 (izquierda) - Con suavizado para evitar jitter
+        let mouseTargetX = paddle1.x;
+        let mouseTargetY = paddle1.y;
+        canvas.addEventListener('mousemove', (e) => {
+            if (gameState === 'playing') {
+                const rect = canvas.getBoundingClientRect();
+                mouseTargetX = e.clientX - rect.left;
+                mouseTargetY = e.clientY - rect.top;
+            }
+        });
+
+        // Controles de teclado para Jugador 2 (derecha) - Con deadzone para evitar input fantasma
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.preventDefault();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        function startGame(selectedMode) {
+            mode = selectedMode;
+            gameState = 'playing';
+            menu.style.display = 'none';
+            instructionsDiv.style.display = 'none';
+            endGame.style.display = 'none';
+            canvas.style.display = 'block';
+            scoreElement.style.display = 'block';
+            if (mode === 'ai') {
+                canvas.style.cursor = 'none'; // Cursor oculto en modo IA
+            } else {
+                canvas.style.cursor = 'default';
+            }
+            resetGame();
+            gameStartTime = Date.now();
+            updateScoreDisplay();
+            animate();
+        }
+
+        function showInstructions() {
+            menu.style.display = 'none';
+            instructionsDiv.style.display = 'block';
+        }
+
+        function hideInstructions() {
+            instructionsDiv.style.display = 'none';
+            menu.style.display = 'block';
+        }
+
+        function backToMenu() {
+            gameState = 'menu';
+            canvas.style.display = 'none';
+            scoreElement.style.display = 'none';
+            endGame.style.display = 'none';
+            menu.style.display = 'block';
+            resetGame();
+        }
+
+        function resetGame() {
+            score = [0, 0];
+            puck = { x: FIELD_WIDTH / 2, y: FIELD_HEIGHT / 2, vx: 0, vy: 0, radius: 8 };
+            paddle1 = { x: 100, y: FIELD_HEIGHT / 2, radius: 25 };
+            paddle2 = { x: FIELD_WIDTH - 100, y: FIELD_HEIGHT / 2, radius: 25 };
+            aiTargetX = paddle2.x;
+            aiTargetY = paddle2.y;
+            retreatCounter = 0;
+            lastAITime = 0;
+            mouseTargetX = paddle1.x;
+            mouseTargetY = paddle1.y;
+        }
+
+        function resetPuck() {
+            puck.x = FIELD_WIDTH / 2;
+            puck.y = FIELD_HEIGHT / 2;
+            puck.vx = (Math.random() - 0.5) * 8;
+            puck.vy = (Math.random() - 0.5) * 8;
+        }
+
+        function updateScoreDisplay() {
+            const elapsed = (Date.now() - gameStartTime) / 1000;
+            const timeLeft = Math.max(0, MAX_TIME - elapsed);
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = Math.floor(timeLeft % 60);
+            scoreElement.textContent = `${score[0]} - ${score[1]}   Tiempo: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function checkWin() {
+            if (score[0] >= 7 || score[1] >= 7) {
+                gameState = 'end';
+                const message = score[0] >= 7 ? '¡Ganaste!' : '¡Perdiste!';
+                document.getElementById('endMessage').textContent = message;
+                endGame.style.display = 'block';
+                canvas.style.display = 'none';
+                return true;
+            }
+            return false;
+        }
+
+        function checkTimeUp() {
+            const elapsed = (Date.now() - gameStartTime) / 1000;
+            if (elapsed >= MAX_TIME) {
+                gameState = 'end';
+                let message;
+                if (score[0] > score[1]) {
+                    message = '¡Ganaste!';
+                } else if (score[1] > score[0]) {
+                    message = '¡Perdiste!';
+                } else {
+                    message = '¡Empate!';
+                }
+                document.getElementById('endMessage').textContent = message + ' (Tiempo agotado)';
+                endGame.style.display = 'block';
+                canvas.style.display = 'none';
+                return true;
+            }
+            return false;
+        }
+
+        function predictPuckPosition(steps) {
+            let predictedX = puck.x;
+            let predictedY = puck.y;
+            let vx = puck.vx;
+            let vy = puck.vy;
+            for (let i = 0; i < steps; i++) {
+                predictedX += vx;
+                predictedY += vy;
+                // Simular rebotes aproximados en paredes
+                if (predictedY - puck.radius < 0 || predictedY + puck.radius > FIELD_HEIGHT) {
+                    vy = -vy;
+                }
+                if (predictedX - puck.radius < 0 || predictedX + puck.radius > FIELD_WIDTH) {
+                    vx = -vx;
+                }
+            }
+            return { x: predictedX, y: predictedY };
+        }
+
+        function updateAI(currentTime) {
+            if (mode === 'ai' && currentTime - lastAITime > 16) { // Actualizar IA cada ~16ms para estabilidad
+                lastAITime = currentTime;
+                // IA más realista: comportamiento variable para no quedarse en el medio, con mejor defensa para ganar más
+                let targetX, targetY;
+                const puckHalf = puck.x < MID_FIELD ? 'left' : 'right';
+
+                // Verificar si el puck está cerca de la portería propia (derecha para IA) y se mueve hacia ella
+                const nearOwnGoal = puck.x > FIELD_WIDTH * 0.85 && puck.vx > 0 && puck.y > goalYStart && puck.y < goalYEnd;
+                if (nearOwnGoal) {
+                    // Evitar gol en propia: retroceder hacia el centro o arriba/abajo, posicionar defensivamente
+                    targetX = FIELD_WIDTH * 0.8; // Quedarse atrás en el campo propio
+                    targetY = puck.y; // Seguir el puck en Y para bloquear
+                    retreatCounter = 0; // Resetear retroceso
+                } else {
+                    retreatCounter++;
+                    // Retroceso ocasional: cada cierto tiempo, retroceder un poco para reposicionamiento
+                    const shouldRetreat = retreatCounter % 180 === 0; // Cada ~3 segundos (asumiendo 60fps)
+                    if (shouldRetreat && puckHalf === 'right') {
+                        // Retroceder en defensa: ir más profundo en el campo
+                        targetX = FIELD_WIDTH * (0.75 + Math.random() * 0.15); // Más profundo
+                        targetY = FIELD_HEIGHT / 2 + (Math.random() - 0.5) * FIELD_HEIGHT * 0.3;
+                    } else if (puckHalf === 'right') {
+                        // Puck en mi mitad (derecha): defender, posición variable en mi campo
+                        const predicted = predictPuckPosition(8); // Mejor predicción para defensa
+                        if (Math.abs(puck.vx) > 3 && puck.vx < 0) { // Puck viniendo rápido hacia mi portería (izquierda)
+                            // Interceptar cerca del centro
+                            targetX = MID_FIELD + 20;
+                            targetY = predicted.y;
+                        } else {
+                            // Posición defensiva variable, no siempre en medio, pero cerca de la portería para bloquear
+                            targetX = FIELD_WIDTH * (0.8 + Math.random() * 0.1); // Más cerca de la portería propia
+                            targetY = puck.y * 0.7 + (FIELD_HEIGHT / 2) * 0.3; // Mejor seguimiento del puck
+                            // Ajustar hacia puck si cerca
+                            if (puck.x > FIELD_WIDTH * 0.7) {
+                                targetY = puck.y;
+                            }
+                        }
+                    } else {
+                        // Puck en mitad izquierda: atacar, pero con cuidado para no empujar hacia propia portería
+                        targetX = MID_FIELD + 10 + Math.random() * 20; // Cerca del centro
+                        targetY = goalYStart + (GOAL_WIDTH / 2); // Apuntar al centro de la portería oponente para aumentar chances de gol
+                        // Si puck lento, intentar un tiro directo
+                        if (Math.sqrt(puck.vx**2 + puck.vy**2) < 3) {
+                            targetY = goalYStart + Math.random() * GOAL_WIDTH;
+                        }
+                        // Seguir puck si está lejos
+                        if (puck.x < MID_FIELD - 50) {
+                            targetY = (targetY + puck.y) / 2;
+                        }
+                    }
+                }
+
+                // Suavizado aumentado para evitar temblor: más peso al target anterior
+                aiTargetX = aiTargetX * 0.85 + targetX * 0.15;
+                aiTargetY = aiTargetY * 0.85 + targetY * 0.15;
+
+                // Moverse hacia el target con velocidad variable reducida (menos aleatoriedad para estabilidad)
+                const dx = aiTargetX - paddle2.x;
+                const dy = aiTargetY - paddle2.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 3) { // Aumentar umbral para menos movimientos pequeños
+                    const speedFactor = 0.9 + Math.random() * 0.1; // Muy poca variación en velocidad
+                    const moveX = (dx / dist) * PADDLE_SPEED * speedFactor;
+                    const moveY = (dy / dist) * PADDLE_SPEED * speedFactor;
+                    paddle2.x += moveX;
+                    paddle2.y += moveY;
+                }
+
+                // Clamp a mitad derecha
+                paddle2.x = Math.max(MID_FIELD, Math.min(FIELD_WIDTH - paddle2.radius, paddle2.x));
+                paddle2.y = Math.max(paddle2.radius, Math.min(FIELD_HEIGHT - paddle2.radius, paddle2.y));
+            }
+        }
+
+        function updatePlayer1() {
+            // Suavizado para ratón: interpolar hacia el target
+            const dx = mouseTargetX - paddle1.x;
+            const dy = mouseTargetY - paddle1.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 2) {
+                const moveX = (dx / dist) * 5; // Velocidad suave
+                const moveY = (dy / dist) * 5;
+                paddle1.x += moveX;
+                paddle1.y += moveY;
+            }
+            // Clamp a la mitad izquierda
+            paddle1.x = Math.max(paddle1.radius, Math.min(MID_FIELD, paddle1.x));
+            paddle1.y = Math.max(paddle1.radius, Math.min(FIELD_HEIGHT - paddle1.radius, paddle1.y));
+        }
+
+        function updatePlayer2() {
+            if (mode === 'twoPlayers') {
+                // Modo 2P: controles de flechas para paddle2, con deadzone y clamp
+                const moveSpeed = 5;
+                let moved = false;
+                if (keys['ArrowLeft'] && paddle2.x > MID_FIELD) {
+                    paddle2.x -= moveSpeed;
+                    moved = true;
+                }
+                if (keys['ArrowRight'] && paddle2.x < FIELD_WIDTH - paddle2.radius) {
+                    paddle2.x += moveSpeed;
+                    moved = true;
+                }
+                if (keys['ArrowUp'] && paddle2.y > paddle2.radius) {
+                    paddle2.y -= moveSpeed;
+                    moved = true;
+                }
+                if (keys['ArrowDown'] && paddle2.y < FIELD_HEIGHT - paddle2.radius) {
+                    paddle2.y += moveSpeed;
+                    moved = true;
+                }
+                // Si no hay input, no mover (evita drift)
+                if (!moved) {
+                    // Opcional: ligera fricción si no hay input
+                }
+                // Clamp a mitad derecha
+                paddle2.x = Math.max(MID_FIELD, Math.min(FIELD_WIDTH - paddle2.radius, paddle2.x));
+                paddle2.y = Math.max(paddle2.radius, Math.min(FIELD_HEIGHT - paddle2.radius, paddle2.y));
+            }
+        }
+
+        function updatePuck() {
+            puck.x += puck.vx;
+            puck.y += puck.vy;
+
+            // Rebote en paredes superior e inferior (siempre)
+            if (puck.y - puck.radius < 0 || puck.y + puck.radius > FIELD_HEIGHT) {
+                puck.vy = -puck.vy;
+                puck.y = Math.max(puck.radius, Math.min(FIELD_HEIGHT - puck.radius, puck.y));
+            }
+
+            // Verificar goles y rebotes en izquierda y derecha
+            if (puck.x - puck.radius < 0) {
+                puck.x = puck.radius;
+                if (puck.y > goalYStart && puck.y < goalYEnd) {
+                    // Gol para Jugador 2/IA (portería izquierda)
+                    score[1]++;
+                    updateScoreDisplay();
+                    if (!checkWin()) resetPuck();
+                } else {
+                    puck.vx = -puck.vx;
+                }
+            } else if (puck.x + puck.radius > FIELD_WIDTH) {
+                puck.x = FIELD_WIDTH - puck.radius;
+                if (puck.y > goalYStart && puck.y < goalYEnd) {
+                    // Gol para Jugador 1 (portería derecha)
+                    score[0]++;
+                    updateScoreDisplay();
+                    if (!checkWin()) resetPuck();
+                } else {
+                    puck.vx = -puck.vx;
+                }
+            }
+
+            // Colisión con paleta 1 (izquierda)
+            const dist1 = Math.sqrt((puck.x - paddle1.x)**2 + (puck.y - paddle1.y)**2);
+            if (dist1 < puck.radius + paddle1.radius) {
+                const angle = Math.atan2(puck.y - paddle1.y, puck.x - paddle1.x);
+                puck.vx = Math.cos(angle) * PUCK_SPEED;
+                puck.vy = Math.sin(angle) * PUCK_SPEED;
+            }
+
+            // Colisión con paleta 2 (derecha) - Ajuste para evitar gol en propia: si puck cerca de portería propia (derecha para IA) y movimiento hacia ella, deflexión más suave
+            const dist2 = Math.sqrt((puck.x - paddle2.x)**2 + (puck.y - paddle2.y)**2);
+            if (dist2 < puck.radius + paddle2.radius) {
+                const nearOwnGoalForAI = puck.x > FIELD_WIDTH * 0.85 && puck.vx > 0 && puck.y > goalYStart && puck.y < goalYEnd;
+                if (nearOwnGoalForAI && mode === 'ai') {
+                    // Deflexión hacia la izquierda para evitar gol en propia (solo IA)
+                    puck.vx = -Math.abs(puck.vx) * 2; // Muy fuerte hacia izquierda para bloquear completamente
+                    puck.vy = 0; // Detener Y para mejor bloqueo
+                } else {
+                    // Colisión normal
+                    const angle = Math.atan2(puck.y - paddle2.y, puck.x - paddle2.x);
+                    puck.vx = Math.cos(angle) * PUCK_SPEED;
+                    puck.vy = Math.sin(angle) * PUCK_SPEED;
+                }
+            }
+
+            // Clamp final para puck
+            puck.x = Math.max(puck.radius, Math.min(FIELD_WIDTH - puck.radius, puck.x));
+            puck.y = Math.max(puck.radius, Math.min(FIELD_HEIGHT - puck.radius, puck.y));
+        }
+
+        function drawField() {
+            // Fondo azul
+            ctx.fillStyle = '#0f3460';
+            ctx.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+
+            // Línea central vertical roja
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(MID_FIELD, 0);
+            ctx.lineTo(MID_FIELD, FIELD_HEIGHT);
+            ctx.stroke();
+
+            // Círculo central
+            ctx.beginPath();
+            ctx.arc(FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 50, 0, 2 * Math.PI);
+            ctx.stroke();
+
+            // Postes de portería izquierda
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, goalYStart, 10, 10);
+            ctx.fillRect(0, goalYEnd, 10, 10);
+
+            // Postes de portería derecha
+            ctx.fillRect(FIELD_WIDTH - 10, goalYStart, 10, 10);
+            ctx.fillRect(FIELD_WIDTH - 10, goalYEnd, 10, 10);
+        }
+
+        function drawPuck() {
+            ctx.fillStyle = '#ffff00'; // Amarillo
+            ctx.beginPath();
+            ctx.arc(puck.x, puck.y, puck.radius, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function drawMallet(x, y, baseColor, handleColor = '#333') {
+            // Base (parte inferior del mazo)
+            ctx.fillStyle = baseColor;
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Mango (línea vertical)
+            ctx.strokeStyle = handleColor;
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(x, y - 25);
+            ctx.lineTo(x, y - 45);
+            ctx.stroke();
+
+            // Cabeza del mango (círculo superior)
+            ctx.fillStyle = handleColor;
+            ctx.beginPath();
+            ctx.arc(x, y - 45, 6, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+            drawField();
+            drawMallet(paddle1.x, paddle1.y, '#0066ff'); // Azul para jugador 1
+            drawMallet(paddle2.x, paddle2.y, '#cc0000'); // Rojo para IA o jugador 2
+            drawPuck();
+        }
+
+        function animate(currentTime = 0) {
+            if (gameState === 'playing') {
+                updatePlayer1();
+                updatePlayer2();
+                updateAI(currentTime);
+                updatePuck();
+                updateScoreDisplay();
+                if (!checkTimeUp()) {
+                    draw();
+                    requestAnimationFrame(animate);
+                }
+            }
+        }
+
+        // Inicialización
+        draw(); // Dibujo inicial oculto
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

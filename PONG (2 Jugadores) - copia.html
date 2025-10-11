@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ping Pong en HTML</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #111;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configuración del juego
+        const paddleWidth = 10;
+        const paddleHeight = 100;
+        const ballSize = 10;
+        const paddleSpeed = 5;
+        const ballSpeedX = 4;
+        const ballSpeedY = 3;
+
+        // Posiciones iniciales
+        let leftPaddleY = (canvas.height - paddleHeight) / 2;
+        let rightPaddleY = (canvas.height - paddleHeight) / 2;
+        let ballX = canvas.width / 2;
+        let ballY = canvas.height / 2;
+        let ballDX = ballSpeedX;
+        let ballDY = ballSpeedY;
+
+        let leftScore = 0;
+        let rightScore = 0;
+
+        // Controles
+        const keys = {};
+        document.addEventListener('keydown', (e) => keys[e.key] = true);
+        document.addEventListener('keyup', (e) => keys[e.key] = false);
+
+        function drawPaddle(x, y) {
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(x, y, paddleWidth, paddleHeight);
+        }
+
+        function drawBall() {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, ballSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawScore() {
+            ctx.fillStyle = '#fff';
+            ctx.font = '48px Arial';
+            ctx.fillText(leftScore, canvas.width / 4, 50);
+            ctx.fillText(rightScore, (3 * canvas.width) / 4, 50);
+        }
+
+        function update() {
+            // Mover paletas
+            if (keys['ArrowUp'] && rightPaddleY > 0) {
+                rightPaddleY -= paddleSpeed;
+            }
+            if (keys['ArrowDown'] && rightPaddleY < canvas.height - paddleHeight) {
+                rightPaddleY += paddleSpeed;
+            }
+            if (keys['w'] && leftPaddleY > 0) {
+                leftPaddleY -= paddleSpeed;
+            }
+            if (keys['s'] && leftPaddleY < canvas.height - paddleHeight) {
+                leftPaddleY += paddleSpeed;
+            }
+
+            // Mover bola
+            ballX += ballDX;
+            ballY += ballDY;
+
+            // Rebote en paredes superior e inferior
+            if (ballY + ballSize > canvas.height || ballY - ballSize < 0) {
+                ballDY = -ballDY;
+            }
+
+            // Rebote en paleta izquierda
+            if (ballX - ballSize < paddleWidth + 10 &&
+                ballY > leftPaddleY - ballSize && ballY < leftPaddleY + paddleHeight + ballSize) {
+                ballDX = -ballDX;
+            }
+
+            // Rebote en paleta derecha
+            if (ballX + ballSize > canvas.width - paddleWidth - 10 &&
+                ballY > rightPaddleY - ballSize && ballY < rightPaddleY + paddleHeight + ballSize) {
+                ballDX = -ballDX;
+            }
+
+            // Puntuación
+            if (ballX + ballSize < 0) {
+                rightScore++;
+                resetBall();
+            }
+            if (ballX - ballSize > canvas.width) {
+                leftScore++;
+                resetBall();
+            }
+        }
+
+        function resetBall() {
+            ballX = canvas.width / 2;
+            ballY = canvas.height / 2;
+            ballDX = -ballDX;
+            ballDY = Math.random() > 0.5 ? ballSpeedY : -ballSpeedY;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPaddle(10, leftPaddleY);
+            drawPaddle(canvas.width - 20, rightPaddleY);
+            drawBall();
+            drawScore();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

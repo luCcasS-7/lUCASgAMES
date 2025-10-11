@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breakout con Power-Ups y Sistema de Copas</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #111;
+        }
+        #menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+        }
+        #menu button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 10px;
+        }
+        #menu button:hover {
+            background-color: #45a049;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 5;
+        }
+        #controls button {
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+        }
+        #controls button:hover {
+            background-color: #0b7dda;
+        }
+        #trophyMenu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background-color: #333;
+            padding: 20px;
+            border: 2px solid #fff;
+            z-index: 10;
+            display: none;
+        }
+        .hidden {
+            display: none;
+        }
+        .trophy {
+            margin: 10px;
+            font-size: 16px;
+        }
+        .unlocked {
+            color: #FFD700;
+        }
+        .locked {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="controls" class="hidden">
+        <button onclick="togglePause()">Pausar/Reanudar</button>
+        <button onclick="showTrophies()">Trofeos</button>
+    </div>
+    <div id="menu">
+        <h1>Breakout con Power-Ups</h1>
+        <button onclick="startGame()">Jugar</button>
+        <button onclick="showTrophies()">Ver Trofeos</button>
+        <div id="gameOver" class="hidden">
+            <h2 id="gameOverText">¡Juego Terminado!</h2>
+            <p id="scoreText">Puntuación: 0</p>
+            <p id="cupsText">Copas Ganadas: 0</p>
+            <button onclick="restartGame()">Volver a Jugar</button>
+            <button onclick="showTrophies()">Ver Camino de Trofeos</button>
+        </div>
+    </div>
+    <div id="trophyMenu">
+        <h2>Camino de Trofeos</h2>
+        <div id="trophyList"></div>
+        <button onclick="hideTrophies()">Cerrar</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const menu = document.getElementById('menu');
+        const gameOverDiv = document.getElementById('gameOver');
+        const gameOverText = document.getElementById('gameOverText');
+        const scoreText = document.getElementById('scoreText');
+        const cupsText = document.getElementById('cupsText');
+        const controls = document.getElementById('controls');
+        const trophyMenu = document.getElementById('trophyMenu');
+        const trophyList = document.getElementById('trophyList');
+
+        // Variables del juego
+        let gameState = 'menu'; // 'menu', 'playing', 'paused', 'gameOver'
+        let score = 0;
+        let lives = 3;
+        let totalCups = localStorage.getItem('totalCups') ? parseInt(localStorage.getItem('totalCups')) : 0;
+        let trophies = JSON.parse(localStorage.getItem('trophies')) || [false, false, false, false, false]; // 5 trofeos
+        let paddle = { x: 350, y: 550, width: 100, height: 10, speed: 7 };
+        let balls = [{ x: 400, y: 300, dx: 3, dy: -3, radius: 5 }];
+        let bricks = [];
+        let powerUps = [];
+        let keys = {};
+        let isPaused = false;
+        let animationId;
+
+        // Trofeos: [Bronce (10 copas), Plata (25), Oro (50), Platino (100), Diamante (200)]
+        const trophyNames = ['🏆 Bronce', '🥈 Plata', '🥇 Oro', '💎 Platino', '🌟 Diamante'];
+        const trophyRequirements = [10, 25, 50, 100, 200];
+
+        // Inicializar ladrillos aleatoriamente (mapa random)
+        function initBricks() {
+            bricks = [];
+            const numRows = Math.floor(Math.random() * 3) + 4; // 4-6 filas
+            const numCols = Math.floor(Math.random() * 3) + 9; // 9-11 columnas
+            const brickWidth = canvas.width / numCols;
+            const brickHeight = 25;
+            const startY = 50;
+
+            for (let row = 0; row < numRows; row++) {
+                for (let col = 0; col < numCols; col++) {
+                    // 10% chance de ladrillo ausente para variedad
+                    if (Math.random() > 0.1) {
+                        bricks.push({
+                            x: col * brickWidth,
+                            y: startY + row * brickHeight,
+                            width: brickWidth,
+                            height: brickHeight,
+                            color: `hsl(${Math.random() * 360}, 70%, 50%)`, // Color random
+                            broken: false
+                        });
+                    }
+                }
+            }
+        }
+
+        // Dibujar todo
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (gameState === 'playing' || gameState === 'paused') {
+                // Dibujar pala
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+
+                // Dibujar bolas
+                ctx.fillStyle = '#fff';
+                balls.forEach(ball => {
+                    ctx.beginPath();
+                    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Dibujar ladrillos
+                bricks.forEach(brick => {
+                    if (!brick.broken) {
+                        ctx.fillStyle = brick.color;
+                        ctx.fillRect(brick.x, brick.y, brick.width, brick.height);
+                    }
+                });
+
+                // Dibujar power-ups
+                powerUps.forEach(powerUp => {
+                    ctx.fillStyle = powerUp.color;
+                    ctx.fillRect(powerUp.x, powerUp.y, powerUp.width, powerUp.height);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(powerUp.type, powerUp.x + 5, powerUp.y + 15);
+                });
+
+                // Dibujar UI
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Arial';
+                ctx.fillText(`Puntuación: ${score}`, 10, 30);
+                ctx.fillText(`Vidas: ${lives}`, 700, 30);
+                ctx.fillText(`Copas Totales: ${totalCups}`, 10, 60);
+
+                if (isPaused) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '40px Arial';
+                    ctx.fillText('PAUSADO', canvas.width / 2 - 80, canvas.height / 2);
+                }
+            }
+        }
+
+        // Actualizar juego
+        function update() {
+            if (gameState !== 'playing' || isPaused) return;
+
+            // Mover pala
+            if (keys['ArrowLeft'] && paddle.x > 0) paddle.x -= paddle.speed;
+            if (keys['ArrowRight'] && paddle.x < canvas.width - paddle.width) paddle.x += paddle.speed;
+
+            // Mover bolas
+            balls.forEach((ball, index) => {
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+
+                // Rebote en paredes
+                if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) ball.dx = -ball.dx;
+                if (ball.y - ball.radius < 0) ball.dy = -ball.dy;
+                if (ball.y + ball.radius > canvas.height) {
+                    balls.splice(index, 1);
+                    if (balls.length === 0) {
+                        lives--;
+                        if (lives > 0) {
+                            balls = [{ x: 400, y: 300, dx: 3, dy: -3, radius: 5 }];
+                        } else {
+                            endGame('¡Perdiste!');
+                        }
+                    }
+                }
+
+                // Rebote en pala
+                if (ball.y + ball.radius > paddle.y && ball.x > paddle.x && ball.x < paddle.x + paddle.width) {
+                    ball.dy = -Math.abs(ball.dy);
+                    ball.dx += (ball.x - (paddle.x + paddle.width / 2)) / (paddle.width / 2) * 2;
+                }
+
+                // Colisión con ladrillos
+                bricks.forEach(brick => {
+                    if (!brick.broken && ball.x > brick.x && ball.x < brick.x + brick.width &&
+                        ball.y > brick.y && ball.y < brick.y + brick.height) {
+                        brick.broken = true;
+                        score += 10;
+                        ball.dy = -ball.dy;
+
+                        // Posibilidad de power-up (20% chance)
+                        if (Math.random() < 0.2) {
+                            const types = ['Enlarge', 'MultiBall'];
+                            const type = types[Math.floor(Math.random() * types.length)];
+                            powerUps.push({
+                                x: brick.x + brick.width / 2 - 15,
+                                y: brick.y + brick.height / 2 - 10,
+                                width: 30,
+                                height: 20,
+                                type: type,
+                                color: type === 'Enlarge' ? '#4CAF50' : '#FF9800',
+                                dy: 2
+                            });
+                        }
+                    }
+                });
+            });
+
+            // Mover power-ups
+            powerUps.forEach((powerUp, index) => {
+                powerUp.y += powerUp.dy;
+                if (powerUp.y > canvas.height) {
+                    powerUps.splice(index, 1);
+                }
+
+                // Colisión con pala
+                if (powerUp.y + powerUp.height > paddle.y && powerUp.x + powerUp.width > paddle.x &&
+                    powerUp.x < paddle.x + paddle.width) {
+                    applyPowerUp(powerUp.type);
+                    powerUps.splice(index, 1);
+                }
+            });
+
+            // Verificar victoria
+            const brokenBricks = bricks.filter(b => b.broken).length;
+            if (brokenBricks === bricks.length) {
+                endGame('¡Ganaste!');
+            }
+        }
+
+        // Aplicar power-up
+        function applyPowerUp(type) {
+            if (type === 'Enlarge') {
+                paddle.width = Math.min(paddle.width * 1.5, 200);
+                setTimeout(() => { paddle.width = 100; }, 10000);
+            } else if (type === 'MultiBall') {
+                const newBall = { x: paddle.x + paddle.width / 2, y: paddle.y - 10, dx: -2, dy: -3, radius: 5 };
+                balls.push(newBall);
+            }
+            score += 50;
+        }
+
+        // Terminar juego
+        function endGame(message) {
+            gameState = 'gameOver';
+            let cupsEarned = 0;
+            if (message === '¡Ganaste!') {
+                cupsEarned = Math.floor(score / 100) + 1; // Copas basadas en puntuación
+                totalCups += cupsEarned;
+                localStorage.setItem('totalCups', totalCups);
+                updateTrophies();
+            }
+            gameOverText.textContent = message;
+            scoreText.textContent = `Puntuación: ${score}`;
+            cupsText.textContent = `Copas Ganadas en esta partida: ${cupsEarned} | Total: ${totalCups}`;
+            gameOverDiv.classList.remove('hidden');
+            menu.style.display = 'block';
+            controls.classList.add('hidden');
+        }
+
+        // Actualizar trofeos
+        function updateTrophies() {
+            for (let i = 0; i < trophyRequirements.length; i++) {
+                if (totalCups >= trophyRequirements[i] && !trophies[i]) {
+                    trophies[i] = true;
+                }
+            }
+            localStorage.setItem('trophies', JSON.stringify(trophies));
+        }
+
+        // Mostrar menú de trofeos
+        function showTrophies() {
+            trophyList.innerHTML = '';
+            trophyNames.forEach((name, index) => {
+                const div = document.createElement('div');
+                div.className = `trophy ${trophies[index] ? 'unlocked' : 'locked'}`;
+                div.textContent = `${name}: ${trophies[index] ? '¡Desbloqueado!' : trophyRequirements[index] + ' copas requeridas'}`;
+                trophyList.appendChild(div);
+            });
+            trophyMenu.style.display = 'block';
+            menu.style.display = 'none';
+        }
+
+        // Ocultar menú de trofeos
+        function hideTrophies() {
+            trophyMenu.style.display = 'none';
+            if (gameState === 'gameOver') {
+                menu.style.display = 'block';
+            } else if (gameState === 'menu') {
+                menu.style.display = 'block';
+            }
+        }
+
+        // Pausar/Reanudar
+        function togglePause() {
+            isPaused = !isPaused;
+            if (!isPaused) {
+                gameLoop();
+            }
+        }
+
+        // Iniciar juego
+        function startGame() {
+            gameState = 'playing';
+            score = 0;
+            lives = 3;
+            paddle = { x: 350, y: 550, width: 100, height: 10, speed: 7 };
+            balls = [{ x: 400, y: 300, dx: 3, dy: -3, radius: 5 }];
+            initBricks();
+            powerUps = [];
+            isPaused = false;
+            menu.style.display = 'none';
+            gameOverDiv.classList.add('hidden');
+            controls.classList.remove('hidden');
+            gameLoop();
+        }
+
+        // Reiniciar juego
+        function restartGame() {
+            cancelAnimationFrame(animationId);
+            startGame();
+        }
+
+        // Controles
+        document.addEventListener('keydown', e => { keys[e.key] = true; });
+        document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+        // Loop del juego
+        function gameLoop() {
+            update();
+            draw();
+            if (gameState === 'playing' && !isPaused) {
+                animationId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // Inicializar trofeos al cargar
+        updateTrophies();
+
+        gameLoop();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

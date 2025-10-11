@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desliza para Cortar - Juego tipo Fruit Ninja Épico</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB, #98FB98);
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #333;
+            background: #f0f8ff;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+            color: #333;
+        }
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 16px;
+            color: #666;
+            text-align: center;
+        }
+        #levelUp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: gold;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: red;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div>Puntuación: <span id="score">0</span></div>
+        <div>Nivel: <span id="level">1</span></div>
+        <div>Power-up: <span id="powerup">Ninguno</span></div>
+        <div>Vidas: <span id="lives">❤️❤️❤️</span></div>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="instructions">Desliza para cortar frutas. ¡Evita las bombas! Power-ups: F=Freeze, B=Boost, S=Shield</div>
+    <div id="levelUp">¡Nivel Subido! +50 Puntos</div>
+    <div id="gameOver">
+        ¡Game Over!<br>
+        Puntuación Final: <span id="finalScore">0</span><br>
+        <button onclick="location.reload()">Reiniciar</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const levelElement = document.getElementById('level');
+        const powerupElement = document.getElementById('powerup');
+        const livesElement = document.getElementById('lives');
+        const levelUpElement = document.getElementById('levelUp');
+        const gameOverElement = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        let score = 0;
+        let level = 1;
+        let lives = 3;
+        let activePowerup = null;
+        let powerupTimer = 0;
+        let fruits = [];
+        let particles = [];
+        let swipeStart = null;
+        let swipePath = [];
+        let isSwiping = false;
+        let gamePaused = false;
+        let gameOver = false;
+        const TRAIL_LENGTH = 10;
+
+        // Emojis para diferentes frutas
+        const fruitEmojis = ['🍎', '🍌', '🍊', '🍇', '🍉', '🍓', '🍒', '🥝', '🍍', '🥥'];
+
+        // Clase para partículas de jugo
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.color = color;
+                this.life = 30;
+                this.size = Math.random() * 5 + 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2;
+                this.life--;
+                this.size *= 0.98;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life / 30;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Clase para mitades de fruta cortada (ahora con emoji semi-transparente)
+        class FruitHalf {
+            constructor(x, y, emoji, angle) {
+                this.x = x;
+                this.y = y;
+                this.emoji = emoji;
+                this.vx = Math.cos(angle) * 3;
+                this.vy = Math.sin(angle) * 3;
+                this.life = 60;
+                this.size = 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.1;
+                this.life--;
+                this.size *= 0.99;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life / 60;
+                ctx.font = `${30 * this.size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        // Clase para item (fruta, power-up, bomba)
+        class Item {
+            constructor(x, y, spawnSide, isPowerup = false, isBomb = false) {
+                this.x = x;
+                this.y = y;
+                this.radius = 30;
+                this.emoji = isBomb ? '💣' : (isPowerup ? '⭐' : fruitEmojis[Math.floor(Math.random() * fruitEmojis.length)]);
+                this.vx = 0;
+                this.vy = 0;
+                this.spawnSide = spawnSide; // 'top', 'bottom', 'left', 'right'
+                this.setVelocity();
+                this.sliced = false;
+                this.life = 150; // Más vida para spawns laterales
+                this.isPowerup = isPowerup;
+                this.isBomb = isBomb;
+                this.type = isPowerup ? ['slow', 'multi', 'bomb', 'freeze', 'boost', 'shield'][Math.floor(Math.random() * 6)] : null;
+                this.halves = [];
+                this.color = isBomb ? '#000' : (isPowerup ? '#FFD700' : '#000');
+            }
+
+            setVelocity() {
+                const speed = (2 + level * 0.5) + Math.random() * 2;
+                switch (this.spawnSide) {
+                    case 'top':
+                        this.vy = speed;
+                        this.vx = (Math.random() - 0.5) * 2;
+                        break;
+                    case 'bottom':
+                        this.vy = -speed;
+                        this.vx = (Math.random() - 0.5) * 2;
+                        break;
+                    case 'left':
+                        this.vx = speed;
+                        this.vy = (Math.random() - 0.5) * 2;
+                        break;
+                    case 'right':
+                        this.vx = -speed;
+                        this.vy = (Math.random() - 0.5) * 2;
+                        break;
+                }
+            }
+
+            update() {
+                if (!this.sliced && !gamePaused) {
+                    this.y += this.vy * (activePowerup?.type === 'slow' ? 0.5 : 1);
+                    this.x += this.vx * (activePowerup?.type === 'slow' ? 0.5 : 1);
+                    this.life--;
+                } else if (this.sliced) {
+                    this.halves.forEach(half => half.update());
+                    this.halves = this.halves.filter(h => h.life > 0);
+                }
+            }
+
+            draw() {
+                if (this.sliced) {
+                    this.halves.forEach(half => half.draw());
+                    return;
+                }
+
+                ctx.save();
+                ctx.font = '40px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.x, this.y);
+
+                // Icono para power-up si no es emoji
+                if (this.isPowerup && this.type) {
+                    ctx.fillStyle = '#000';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(this.type[0].toUpperCase(), this.x + 15, this.y + 15);
+                }
+
+                ctx.restore();
+            }
+
+            slice(swipeX, swipeY) {
+                if (this.sliced) return;
+                this.sliced = true;
+
+                // Partículas solo para frutas
+                if (!this.isBomb && !this.isPowerup) {
+                    for (let i = 0; i < 20; i++) {
+                        particles.push(new Particle(this.x, this.y, '#FF69B4'));
+                    }
+                }
+
+                // Mitades para frutas
+                if (!this.isBomb && !this.isPowerup) {
+                    const angle1 = Math.random() * Math.PI;
+                    const angle2 = angle1 + Math.PI;
+                    this.halves.push(new FruitHalf(this.x, this.y, this.emoji, angle1));
+                    this.halves.push(new FruitHalf(this.x, this.y, this.emoji, angle2));
+                }
+
+                // Efectos
+                if (this.isBomb) {
+                    loseLife();
+                } else if (this.isPowerup) {
+                    activatePowerup(this.type);
+                } else {
+                    let multiplier = 1;
+                    if (activePowerup?.type === 'multi') multiplier = 2;
+                    if (activePowerup?.type === 'boost') multiplier = 3;
+                    score += 10 * multiplier;
+                }
+
+                updateUI();
+            }
+
+            intersects(swipeX, swipeY) {
+                const dist = Math.sqrt((this.x - swipeX)**2 + (this.y - swipeY)**2);
+                return dist < this.radius;
+            }
+        }
+
+        // Perder vida
+        function loseLife() {
+            lives--;
+            updateUI();
+            if (lives <= 0) {
+                gameOver = true;
+                finalScoreElement.textContent = score;
+                gameOverElement.style.display = 'block';
+            }
+        }
+
+        // Activar power-up
+        function activatePowerup(type) {
+            activePowerup = { type, duration: 5000 };
+            powerupTimer = Date.now() + activePowerup.duration;
+
+            if (type === 'bomb') {
+                fruits.forEach(fruit => {
+                    if (!fruit.sliced && !fruit.isBomb && Math.hypot(fruit.x - fruit.x, fruit.y - fruit.y) < 100) {
+                        fruit.slice(fruit.x, fruit.y);
+                    }
+                });
+                score += 50;
+            } else if (type === 'freeze') {
+                gamePaused = true;
+                setTimeout(() => { gamePaused = false; }, 3000);
+            }
+            updateUI();
+        }
+
+        // Generar items con lados aleatorios
+        function spawnItem() {
+            if (gameOver) return;
+            const prob = 0.02 + level * 0.005;
+            if (Math.random() < prob) {
+                const sides = ['top', 'bottom', 'left', 'right'];
+                const side = sides[Math.floor(Math.random() * sides.length)];
+                let x, y;
+                switch (side) {
+                    case 'top':
+                        x = Math.random() * canvas.width;
+                        y = -50;
+                        break;
+                    case 'bottom':
+                        x = Math.random() * canvas.width;
+                        y = canvas.height + 50;
+                        break;
+                    case 'left':
+                        x = -50;
+                        y = Math.random() * canvas.height;
+                        break;
+                    case 'right':
+                        x = canvas.width + 50;
+                        y = Math.random() * canvas.height;
+                        break;
+                }
+                const isPowerup = Math.random() < 0.15;
+                const isBomb = !isPowerup && Math.random() < 0.05; // 5% bombas
+                fruits.push(new Item(x, y, side, isPowerup, isBomb));
+            }
+        }
+
+        // Subir nivel
+        function levelUp() {
+            level++;
+            score += 50;
+            levelUpElement.style.display = 'block';
+            setTimeout(() => { levelUpElement.style.display = 'none'; }, 2000);
+            updateUI();
+        }
+
+        // Actualizar UI
+        function updateUI() {
+            scoreElement.textContent = score;
+            levelElement.textContent = level;
+            livesElement.textContent = '❤️'.repeat(lives);
+
+            if (activePowerup && Date.now() < powerupTimer) {
+                powerupElement.textContent = activePowerup.type;
+            } else {
+                activePowerup = null;
+                powerupElement.textContent = 'Ninguno';
+            }
+
+            if (score > level * 200) {
+                levelUp();
+            }
+        }
+
+        // Eventos mouse (sin rastro)
+        canvas.addEventListener('mousedown', (e) => {
+            if (gameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            swipeStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            swipePath = [swipeStart];
+            isSwiping = true;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isSwiping || gameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            swipePath.push(current);
+
+            if (swipePath.length > TRAIL_LENGTH) {
+                swipePath.shift();
+            }
+
+            fruits.forEach(fruit => {
+                if (!fruit.sliced) {
+                    for (let i = 0; i < swipePath.length; i++) {
+                        if (fruit.intersects(swipePath[i].x, swipePath[i].y)) {
+                            fruit.slice(swipePath[i].x, swipePath[i].y);
+                            break;
+                        }
+                    }
+                }
+            });
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isSwiping = false;
+            swipePath = [];
+        });
+
+        // Eventos touch (similar)
+        canvas.addEventListener('touchstart', (e) => {
+            if (gameOver) return;
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            swipeStart = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+            swipePath = [swipeStart];
+            isSwiping = true;
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!isSwiping || gameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const current = { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+            swipePath.push(current);
+
+            if (swipePath.length > TRAIL_LENGTH) {
+                swipePath.shift();
+            }
+
+            fruits.forEach(fruit => {
+                if (!fruit.sliced) {
+                    for (let i = 0; i < swipePath.length; i++) {
+                        if (fruit.intersects(swipePath[i].x, swipePath[i].y)) {
+                            fruit.slice(swipePath[i].x, swipePath[i].y);
+                            break;
+                        }
+                    }
+                }
+            });
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            isSwiping = false;
+            swipePath = [];
+        });
+
+        // Bucle principal
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (!gameOver) {
+                spawnItem();
+            }
+
+            // Update y draw items
+            fruits = fruits.filter(item => {
+                item.update();
+                if ((item.x < -100 || item.x > canvas.width + 100 || item.y < -100 || item.y > canvas.height + 100) || item.life <= 0) {
+                    if (!item.sliced && !item.isPowerup && !item.isBomb) {
+                        let penalty = true;
+                        if (activePowerup?.type === 'shield') penalty = false;
+                        if (penalty) {
+                            score = Math.max(0, score - 5);
+                        }
+                    }
+                    return false;
+                }
+                item.draw();
+                return true;
+            });
+
+            // Update y draw partículas
+            particles = particles.filter(p => {
+                p.update();
+                p.draw();
+                return p.life > 0;
+            });
+
+            updateUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

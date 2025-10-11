@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mario Kart Completo - Versión HTML5</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #87CEEB; /* Cielo azul */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            color: white;
+        }
+        #startScreen h1 {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        #nameInput {
+            padding: 10px;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: none;
+            text-align: center;
+        }
+        #startBtn {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #nameChange {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 15;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            display: none; /* Oculto hasta empezar */
+        }
+        #nameChange input {
+            background: white;
+            padding: 5px;
+            border-radius: 3px;
+            border: none;
+            margin-right: 5px;
+        }
+        #nameChange button {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        #menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            display: none; /* Oculto hasta empezar */
+        }
+        #gameCanvas {
+            border: 2px solid #333; /* Borde gris para carretera */
+            background-color: #808080; /* Fondo gris asfalto */
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            display: none; /* Oculto hasta empezar */
+        }
+        #positions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none; /* Oculto hasta empezar */
+        }
+        button {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 2px;
+        }
+        select {
+            background: white;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        #nameChangeBtn {
+            background: #4CAF50;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="startScreen">
+        <h1>¡Bienvenido a Mario Kart!</h1>
+        <p>Elige tu nombre de jugador:</p>
+        <input type="text" id="nameInput" placeholder="Tu nombre..." maxlength="15" value="Mario">
+        <br><br>
+        <button id="startBtn" onclick="startGame()">¡Empezar Carrera!</button>
+    </div>
+
+    <button id="nameChangeBtn" onclick="toggleNameChange()" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 15; display: none;">Cambiar Nombre</button>
+    <div id="nameChange">
+        <input type="text" id="newNameInput" placeholder="Nuevo nombre..." maxlength="15">
+        <button onclick="changeName()">Aplicar</button>
+        <button onclick="toggleNameChange()">Cancelar</button>
+    </div>
+
+    <div id="menu">
+        <label>Vueltas: </label>
+        <select id="lapSelect" onchange="setLaps(this.value)">
+            <option value="3">3 Vueltas</option>
+            <option value="5">5 Vueltas</option>
+        </select>
+        <br><br>
+        <button onclick="startRace()">¡Iniciar Carrera!</button>
+        <button onclick="restartRace()">Reiniciar</button>
+    </div>
+    <div id="info">
+        <div id="lights">Luces: Preparando...</div>
+        <div id="lapInfo">Vuelta: 0/3</div>
+        <div id="speedInfo">Velocidad: 0</div>
+        <div id="winner">¡Corre!</div>
+    </div>
+    <div id="positions">
+        <h4>Posiciones:</h4>
+        <div id="posList"></div>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Configuración de carrera
+        let laps = 3;
+        let raceStarted = false;
+        let raceFinished = false;
+        let lightPhase = 0;
+        let lights = ['🔴', '🔴', '🟢'];
+        let karts = [];
+        let finishOrder = [];
+        const cx = width / 2;
+        const cy = height / 2;
+        const rx = 375;
+        const ry = 150;
+        const PI = Math.PI;
+        const finishX = cx + 370;
+
+        // Nombres de bots temáticos
+        const botNamesPool = ['Luigi', 'Toad', 'Yoshi', 'Peach', 'Bowser', 'Wario', 'Waluigi', 'Donkey Kong', 'Shy Guy', 'Daisy', 'Koopa', 'Baby Mario'];
+
+        // Jugador
+        const player = {
+            x: 0,
+            y: 0,
+            speed: 0,
+            angle: 0,
+            maxSpeed: 8,
+            acceleration: 0.3,
+            friction: 0.15,
+            lap: 0,
+            finished: false,
+            color: 'red',
+            name: 'Mario',
+            aiAngle: 0,
+            boost: false,
+            position: 1 // Para tracking
+        };
+        karts.push(player);
+
+        // 9 Karts IA
+        const colors = ['blue', 'green', 'purple', 'orange', 'pink', 'yellow', 'brown', 'gray', 'black'];
+        for (let i = 1; i < 10; i++) {
+            const ai = {
+                x: 0,
+                y: 0,
+                speed: 0,
+                angle: 0,
+                maxSpeed: 5 + Math.random() * 3,
+                acceleration: 0.2,
+                friction: 0.1,
+                lap: 0,
+                finished: false,
+                color: colors[i-1],
+                name: '',
+                aiAngle: 0,
+                boost: false,
+                position: i + 1
+            };
+            karts.push(ai);
+        }
+
+        // Generar bots random
+        function generateBots() {
+            for (let i = 1; i < 10; i++) {
+                karts[i].name = botNamesPool[Math.floor(Math.random() * botNamesPool.length)];
+                karts[i].maxSpeed = 4 + Math.random() * 4;
+                karts[i].boost = false;
+                karts[i].position = i + 1;
+            }
+        }
+
+        // Configurar posiciones iniciales
+        const startAngle = 3 * PI / 2;
+        const offset = 0.15;
+        function setStartPositions() {
+            for (let i = 0; i < 10; i++) {
+                karts[i].aiAngle = startAngle + (i - 4.5) * offset;
+                karts[i].position = i + 1; // Resetear posiciones
+            }
+        }
+
+        // Actualizar posición desde aiAngle
+        function updatePositionFromAngle(kart) {
+            kart.x = cx + rx * Math.cos(kart.aiAngle);
+            kart.y = cy + ry * Math.sin(kart.aiAngle);
+            kart.angle = Math.atan2(ry * Math.sin(kart.aiAngle), rx * Math.cos(kart.aiAngle));
+        }
+
+        // Inicializar
+        generateBots();
+        setStartPositions();
+        karts.forEach(updatePositionFromAngle);
+
+        // Teclas
+        const keys = {};
+        document.addEventListener('keydown', (e) => { keys[e.key] = true; });
+        document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+        // Pantalla de inicio
+        function startGame() {
+            const name = document.getElementById('nameInput').value.trim() || 'Jugador';
+            player.name = name;
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('menu').style.display = 'block';
+            document.getElementById('info').style.display = 'block';
+            document.getElementById('positions').style.display = 'block';
+            document.getElementById('nameChangeBtn').style.display = 'block';
+            generateBots();
+            setStartPositions();
+            karts.forEach(updatePositionFromAngle);
+        }
+
+        // Cambiar nombre (centrado arriba)
+        function toggleNameChange() {
+            const div = document.getElementById('nameChange');
+            div.style.display = div.style.display === 'block' ? 'none' : 'block';
+            if (div.style.display === 'block') {
+                document.getElementById('newNameInput').value = player.name;
+            }
+        }
+
+        function changeName() {
+            const newName = document.getElementById('newNameInput').value.trim() || 'Jugador';
+            player.name = newName;
+            toggleNameChange();
+        }
+
+        // Configurar vueltas
+        function setLaps(value) {
+            laps = parseInt(value);
+            document.getElementById('lapInfo').innerHTML = `Vuelta: 0/${laps}`;
+        }
+
+        // Reiniciar carrera
+        function restartRace() {
+            raceStarted = false;
+            raceFinished = false;
+            lightPhase = 0;
+            finishOrder = [];
+            generateBots(); // Nuevos bots
+            setStartPositions();
+            karts.forEach(kart => {
+                kart.speed = 0;
+                kart.lap = 0;
+                kart.finished = false;
+                kart.boost = false;
+                updatePositionFromAngle(kart);
+            });
+            document.getElementById('lights').innerHTML = 'Luces: Preparando...';
+            document.getElementById('lapInfo').innerHTML = `Vuelta: 0/${laps}`;
+            document.getElementById('speedInfo').innerHTML = 'Velocidad: 0';
+            document.getElementById('winner').innerHTML = '¡Corre!';
+            updatePositions();
+        }
+
+        // Iniciar secuencia de luces
+        function startRace() {
+            if (raceStarted) return;
+            restartRace();
+            raceStarted = true;
+            updateLights();
+            const lightInterval = setInterval(() => {
+                lightPhase++;
+                if (lightPhase >= lights.length) {
+                    clearInterval(lightInterval);
+                    document.getElementById('lights').innerHTML = '¡A CORRER! 🏁';
+                    karts.forEach(kart => {
+                        if (kart !== player) kart.speed = kart.acceleration * 2;
+                    });
+                } else {
+                    updateLights();
+                }
+            }, 1000);
+        }
+
+        function updateLights() {
+            document.getElementById('lights').innerHTML = `Luces: ${lights[lightPhase]}`;
+        }
+
+        // Actualizar posiciones (basado en aiAngle para competencia)
+        function updatePositions() {
+            karts.sort((a, b) => a.aiAngle - b.aiAngle); // Orden por progreso en pista
+            karts.forEach((kart, index) => {
+                kart.position = index + 1;
+            });
+            let posHTML = '';
+            karts.slice(0, 5).forEach(kart => { // Top 5 para no saturar
+                posHTML += `<div>${kart.position}º: ${kart.name}</div>`;
+            });
+            document.getElementById('posList').innerHTML = posHTML;
+        }
+
+        // Dibujar pista
+        function drawTrack() {
+            ctx.fillStyle = '#696969';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, 450, 200, 0, 0, 2 * PI);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, 300, 100, 0, 0, 2 * PI);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * PI);
+            ctx.stroke();
+
+            const finishYTop = cy - 150;
+            const finishYBottom = cy + 150;
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 8;
+            ctx.setLineDash([15, 15]);
+            ctx.beginPath();
+            ctx.moveTo(finishX, finishYTop);
+            ctx.lineTo(finishX, finishYBottom);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Dibujar kart (con boost y posición)
+        function drawKart(x, y, angle, color, name, position) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.fillStyle = color;
+            ctx.fillRect(-15, -8, 30, 16);
+            ctx.fillStyle = 'black';
+            ctx.fillRect(-12, -6, 24, 12);
+            ctx.fillStyle = 'yellow';
+            ctx.fillRect(-10, -4, 4, 8);
+            ctx.fillRect(6, -4, 4, 8);
+            if (karts.find(k => k.x === x && k.y === y).boost) {
+                ctx.fillStyle = 'cyan';
+                ctx.fillRect(-20, -10, 5, 20);
+                ctx.fillRect(15, -10, 5, 20);
+            }
+            ctx.fillStyle = 'white';
+            ctx.font = '10px Arial';
+            ctx.fillText(name, -15, 20);
+            ctx.fillText(`P${position}`, 10, 20); // Posición breve
+            ctx.restore();
+        }
+
+        // Detectar cruce de meta
+        function checkLap(kart, prevX) {
+            if (kart.x > finishX && prevX <= finishX && kart.speed > 0) {
+                kart.lap++;
+                if (kart.lap >= laps && !kart.finished) {
+                    kart.finished = true;
+                    finishOrder.push(kart);
+                    if (kart === player) {
+                        document.getElementById('winner').innerHTML = `¡${kart.name} gana! 🎉`;
+                    }
+                }
+                document.getElementById('lapInfo').innerHTML = `Vuelta: ${player.lap}/${laps}`;
+            }
+        }
+
+        // Actualizar jugador (boost más frecuente para emoción)
+        function updatePlayer() {
+            const prevX = player.x;
+            let boosted = false;
+            if (keys['ArrowUp']) {
+                player.speed = Math.min(player.speed + player.acceleration, player.maxSpeed);
+                if (!player.boost && Math.random() < 0.15) { // Más chance para adrenalina
+                    player.boost = true;
+                    player.speed += 2;
+                    setTimeout(() => { player.boost = false; }, 800);
+                }
+                boosted = player.boost;
+            } else if (keys['ArrowDown']) {
+                player.speed = Math.max(player.speed - player.friction * 2, 0);
+            } else {
+                if (player.speed > 0) player.speed = Math.max(player.speed - player.friction, 0);
+            }
+            player.aiAngle += (player.speed / 8) * 0.02;
+            updatePositionFromAngle(player);
+            checkLap(player, prevX);
+            document.getElementById('speedInfo').innerHTML = `Velocidad: ${Math.abs(player.speed).toFixed(1)} ${boosted ? '(BOOST!)' : ''}`;
+            updatePositions(); // Actualizar posiciones en tiempo real
+        }
+
+        // Actualizar IA (más competencia: overtakes random, slowdowns)
+        function updateAI(kart) {
+            if (kart.finished || !raceStarted) return;
+            const prevX = kart.x;
+
+            // Boost random más agresivo
+            if (!kart.boost && Math.random() < 0.008) {
+                kart.boost = true;
+                kart.speed += 3;
+                setTimeout(() => { kart.boost = false; }, 1200);
+            }
+
+            // Slowdown random para competencia (chance de "accidente")
+            if (Math.random() < 0.005) {
+                kart.speed *= 0.5; // Frenazo temporal
+                setTimeout(() => { kart.speed = kart.maxSpeed * 0.8; }, 2000);
+            }
+
+            // Variación de velocidad para overtakes
+            if (Math.random() < 0.03) kart.speed += Math.random() * 0.3 - 0.15;
+
+            kart.aiAngle += (kart.speed / 8) * 0.02;
+            updatePositionFromAngle(kart);
+
+            kart.speed = Math.max(kart.speed - kart.friction * 0.5, 0);
+            if (kart.speed < kart.maxSpeed * 0.9) kart.speed += kart.acceleration;
+
+            checkLap(kart, prevX);
+
+            if (finishOrder.length >= 10) {
+                raceFinished = true;
+                showPodium();
+            }
+
+            updatePositions(); // Competencia visible
+        }
+
+        // Mostrar podio
+        function showPodium() {
+            let podiumHTML = '<h4>Podio:</h4><ol>';
+            finishOrder.slice(0, 3).forEach((kart, i) => {
+                podiumHTML += `<li>${i+1}º: ${kart.name} (${kart.color})</li>`;
+            });
+            podiumHTML += '</ol>';
+            document.getElementById('info').innerHTML = podiumHTML;
+        }
+
+        // Bucle principal
+        function gameLoop() {
+            ctx.clearRect(0, 0, width, height);
+            drawTrack();
+
+            if (!raceStarted) {
+                karts.forEach(kart => {
+                    updatePositionFromAngle(kart);
+                    drawKart(kart.x, kart.y, kart.angle, kart.color, kart.name, kart.position);
+                });
+            } else {
+                if (!raceFinished) {
+                    updatePlayer();
+                    karts.slice(1).forEach(updateAI);
+                }
+                karts.forEach(kart => {
+                    if (!kart.finished) {
+                        drawKart(kart.x, kart.y, kart.angle, kart.color, kart.name, kart.position);
+                    }
+                });
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Iniciar loop
+        gameLoop();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

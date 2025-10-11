@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird - Clon Simple</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #70c5ce;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #000;
+            background-color: #70c5ce;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <div id="gameOver">
+        <h2>¡Game Over!</h2>
+        <p>Puntuación: <span id="score">0</span></p>
+        <button onclick="restartGame()">Reiniciar</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverDiv = document.getElementById('gameOver');
+        const scoreSpan = document.getElementById('score');
+
+        // Variables del juego
+        let bird = {
+            x: 50,
+            y: 300,
+            width: 30,
+            height: 30,
+            velocity: 0,
+            gravity: 0.5,
+            jump: -8
+        };
+
+        let pipes = [];
+        let score = 0;
+        let gameRunning = true;
+        let frame = 0;
+
+        // Función para dibujar el pájaro (forma simple de pájaro)
+        function drawBird() {
+            ctx.save();
+            ctx.translate(bird.x + bird.width / 2, bird.y + bird.height / 2);
+
+            // Rotación basada en la velocidad (para simular inclinación)
+            const rotation = bird.velocity * 0.1;
+            ctx.rotate(rotation);
+
+            // Cuerpo del pájaro (óvalo)
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, bird.width / 2, bird.height / 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ala simple (triángulo)
+            ctx.fillStyle = '#ff8c00';
+            ctx.beginPath();
+            ctx.moveTo(-5, -5);
+            ctx.lineTo(5, 0);
+            ctx.lineTo(-5, 5);
+            ctx.fill();
+
+            // Ojo (círculo blanco con pupila)
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(8, -3, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(9, -3, 1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Pico (triángulo naranja)
+            ctx.fillStyle = '#ff4500';
+            ctx.beginPath();
+            ctx.moveTo(12, 0);
+            ctx.lineTo(18, -2);
+            ctx.lineTo(18, 2);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Función para crear un nuevo tubo
+        function createPipe() {
+            const gap = 150; // Altura del hueco
+            const minHeight = 50;
+            const maxHeight = canvas.height - gap - minHeight;
+            const topHeight = Math.random() * (maxHeight - minHeight) + minHeight;
+            pipes.push({
+                x: canvas.width,
+                topHeight: topHeight,
+                bottomY: topHeight + gap,
+                bottomHeight: canvas.height - (topHeight + gap),
+                width: 60,
+                passed: false
+            });
+        }
+
+        // Función para dibujar las tuberías (con "tapas" y degradado simple)
+        function drawPipes() {
+            pipes.forEach(pipe => {
+                // Degradado para las tuberías (verde oscuro a claro)
+                const gradient = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipe.width, 0);
+                gradient.addColorStop(0, '#006400');
+                gradient.addColorStop(1, '#228b22');
+
+                ctx.fillStyle = gradient;
+
+                // Tubo superior
+                ctx.fillRect(pipe.x, 0, pipe.width, pipe.topHeight);
+
+                // "Tapa" superior del tubo superior (rectángulo más ancho)
+                ctx.fillStyle = '#32cd32';
+                ctx.fillRect(pipe.x - 5, pipe.topHeight - 20, pipe.width + 10, 20);
+
+                // Tubo inferior
+                ctx.fillRect(pipe.x, pipe.bottomY, pipe.width, pipe.bottomHeight);
+
+                // "Tapa" inferior del tubo inferior (rectángulo más ancho)
+                ctx.fillStyle = '#32cd32';
+                ctx.fillRect(pipe.x - 5, pipe.bottomY, pipe.width + 10, 20);
+            });
+        }
+
+        // Función para actualizar posiciones
+        function update() {
+            if (!gameRunning) return;
+
+            // Actualizar pájaro
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+
+            // Colisión con suelo o techo
+            if (bird.y + bird.height > canvas.height || bird.y < 0) {
+                gameOver();
+            }
+
+            // Actualizar tubos
+            pipes.forEach(pipe => {
+                pipe.x -= 2; // Velocidad de movimiento
+
+                // Aumentar puntuación si pasa el tubo
+                if (!pipe.passed && pipe.x + pipe.width < bird.x) {
+                    score++;
+                    pipe.passed = true;
+                }
+            });
+
+            // Remover tubos fuera de pantalla
+            pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+
+            // Crear nuevo tubo cada 100 frames
+            frame++;
+            if (frame % 100 === 0) {
+                createPipe();
+            }
+        }
+
+        // Función para detectar colisiones
+        function checkCollisions() {
+            pipes.forEach(pipe => {
+                if (bird.x < pipe.x + pipe.width &&
+                    bird.x + bird.width > pipe.x &&
+                    (bird.y < pipe.topHeight || bird.y + bird.height > pipe.bottomY)) {
+                    gameOver();
+                }
+            });
+        }
+
+        // Función para dibujar todo
+        function draw() {
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar elementos
+            drawBird();
+            drawPipes();
+
+            // Dibujar puntuación
+            ctx.fillStyle = '#000';
+            ctx.font = '24px Arial';
+            ctx.fillText(`Puntuación: ${score}`, 10, 30);
+        }
+
+        // Función para game over
+        function gameOver() {
+            gameRunning = false;
+            scoreSpan.textContent = score;
+            gameOverDiv.style.display = 'block';
+        }
+
+        // Función para saltar
+        function jump() {
+            if (gameRunning) {
+                bird.velocity = bird.jump;
+            }
+        }
+
+        // Reiniciar juego
+        function restartGame() {
+            bird.y = 300;
+            bird.velocity = 0;
+            pipes = [];
+            score = 0;
+            frame = 0;
+            gameRunning = true;
+            gameOverDiv.style.display = 'none';
+            createPipe(); // Crear el primer tubo
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                jump();
+            }
+        });
+        canvas.addEventListener('click', jump);
+
+        // Loop principal del juego
+        function gameLoop() {
+            update();
+            checkCollisions();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Iniciar juego
+        createPipe();
+        gameLoop();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

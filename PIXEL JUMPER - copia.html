@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Jumper</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            font-family: monospace;
+        }
+        canvas {
+            border: 2px solid #fff;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">
+        Usa flechas o toca izquierda/derecha para moverte. ¡Salta automáticamente en plataformas! Azules: más alto. Negras: ¡caes a través! (Menos frecuentes para subir más).
+    </div>
+    <canvas id="gameCanvas" width="320" height="480"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        // Configuración
+        const platformWidth = 64;
+        const platformHeight = 8;
+        const platformStart = canvas.height - 50;
+        const gravity = 0.5;
+        const drag = 0.3;
+        const normalBounceVelocity = -12;
+        const superBounceVelocity = -16; // Impulso extra para plataformas azules
+        let minPlatformSpace = 40;
+        let maxPlatformSpace = 80;
+        const BACKGROUND_COLORS = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+        ];
+        let currentBgColorIndex = 0;
+        let score = 0;
+        let bgLevel = 0;
+        let gameOver = false;
+        let finalScore = 0;
+
+        // Jugador
+        const player = {
+            width: 16,
+            height: 16,
+            x: canvas.width / 2 - 8,
+            y: platformStart - 16,
+            dx: 0,
+            dy: 0
+        };
+
+        let playerDir = 0;
+        let keydown = false;
+        let prevPlayerY = player.y;
+
+        let platforms = [];
+
+        // Función random
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // Crear plataformas iniciales (sin trampas en las primeras 5 para evitar bloqueo inicial)
+        function createInitialPlatforms() {
+            let plats = [];
+            for (let i = 0; i < 10; i++) { // Más plataformas iniciales para mejor cobertura
+                let yPos = platformStart - (i * (platformHeight + random(minPlatformSpace, maxPlatformSpace)));
+                let x = random(0, canvas.width - platformWidth);
+                let isSuper = Math.random() < 0.15;
+                let isTrap = (i >= 5) ? Math.random() < 0.05 : false; // 5% chance solo después de las primeras 5, nunca inicial
+                plats.push({ x, y: yPos, isSuper, isTrap });
+            }
+            return plats;
+        }
+
+        // Reiniciar juego
+        function resetGame() {
+            player.x = canvas.width / 2 - 8;
+            player.y = platformStart - 16;
+            player.dy = 0;
+            player.dx = 0;
+            playerDir = 0;
+            prevPlayerY = player.y;
+            platforms = createInitialPlatforms();
+            minPlatformSpace = 40;
+            maxPlatformSpace = 80;
+            score = 0;
+            bgLevel = 0;
+            currentBgColorIndex = 0;
+            gameOver = false;
+        }
+
+        // Controles teclado
+        document.addEventListener('keydown', function(e) {
+            if (gameOver && e.code === 'Space') {
+                e.preventDefault();
+                resetGame();
+                return;
+            }
+            if (e.which === 37) { // Izquierda
+                keydown = true;
+                playerDir = -1;
+                player.dx = -3;
+            } else if (e.which === 39) { // Derecha
+                keydown = true;
+                playerDir = 1;
+                player.dx = 3;
+            }
+            // Espacio no hace nada, salto automático
+        });
+
+        document.addEventListener('keyup', function(e) {
+            if (!gameOver) {
+                keydown = false;
+            }
+        });
+
+        // Controles táctiles
+        canvas.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            if (gameOver) {
+                resetGame();
+                return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const touchX = e.touches[0].clientX - rect.left;
+            if (touchX < canvas.width / 2) {
+                playerDir = -1;
+                player.dx = -3;
+            } else {
+                playerDir = 1;
+                player.dx = 3;
+            }
+            keydown = true;
+        });
+
+        canvas.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            if (!gameOver) {
+                keydown = false;
+            }
+        });
+
+        // Bucle principal
+        function gameLoop() {
+            requestAnimationFrame(gameLoop);
+
+            // Fondo
+            ctx.fillStyle = BACKGROUND_COLORS[currentBgColorIndex];
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (!gameOver) {
+                // Gravedad
+                player.dy += gravity;
+
+                // Scroll si sube
+                if (player.y < canvas.height / 2 && player.dy < 0) {
+                    const scrollAmount = -player.dy;
+                    platforms.forEach(function(platform) {
+                        platform.y += scrollAmount;
+                    });
+                    // Añadir plataformas nuevas (asegura al menos una segura cada 3)
+                    while (platforms[platforms.length - 1].y > 0) {
+                        let lastY = platforms[platforms.length - 1].y;
+                        let x = random(0, canvas.width - platformWidth);
+                        let isSuper = Math.random() < 0.15;
+                        let isTrap = Math.random() < 0.05; // Reducido a 5% para menos bloqueos
+                        platforms.push({
+                            x: x,
+                            y: lastY - (platformHeight + random(minPlatformSpace, maxPlatformSpace)),
+                            isSuper: isSuper,
+                            isTrap: isTrap
+                        });
+                        minPlatformSpace += 0.25;
+                        maxPlatformSpace += 0.25;
+                        maxPlatformSpace = Math.min(maxPlatformSpace, canvas.height / 3);
+                    }
+                    score += Math.floor(scrollAmount);
+                    // Cambiar color de fondo
+                    let newLevel = Math.floor(score / 1000);
+                    if (newLevel > bgLevel) {
+                        currentBgColorIndex = newLevel % BACKGROUND_COLORS.length;
+                        bgLevel = newLevel;
+                    }
+                } else {
+                    player.y += player.dy;
+                    // Game over
+                    if (player.y > canvas.height) {
+                        gameOver = true;
+                        finalScore = Math.floor(score);
+                        return; // Pausa el juego hasta reinicio
+                    }
+                }
+
+                // Fricción horizontal
+                if (!keydown) {
+                    if (playerDir < 0) {
+                        player.dx += drag;
+                        if (player.dx > 0) {
+                            player.dx = 0;
+                            playerDir = 0;
+                        }
+                    } else if (playerDir > 0) {
+                        player.dx -= drag;
+                        if (player.dx < 0) {
+                            player.dx = 0;
+                            playerDir = 0;
+                        }
+                    }
+                }
+
+                player.x += player.dx;
+
+                // Wrap alrededor de la pantalla
+                if (player.x + player.width < 0) {
+                    player.x = canvas.width;
+                } else if (player.x > canvas.width) {
+                    player.x = -player.width;
+                }
+
+                // Dibujar plataformas
+                platforms.forEach(function(platform) {
+                    // Color: negra para trampa, azul para super, verde para normal
+                    if (platform.isTrap) {
+                        ctx.fillStyle = '#000';
+                    } else if (platform.isSuper) {
+                        ctx.fillStyle = '#00F';
+                    } else {
+                        ctx.fillStyle = '#0F0';
+                    }
+                    ctx.fillRect(platform.x, platform.y, platformWidth, platformHeight);
+                    // Colisión solo si no es trampa
+                    if (!platform.isTrap) {
+                        if (
+                            player.dy > 0 &&
+                            prevPlayerY + player.height <= platform.y &&
+                            player.x < platform.x + platformWidth &&
+                            player.x + player.width > platform.x &&
+                            player.y < platform.y + platformHeight &&
+                            player.y + player.height > platform.y
+                        ) {
+                            player.y = platform.y - player.height;
+                            player.dy = platform.isSuper ? superBounceVelocity : normalBounceVelocity;
+                        }
+                    }
+                    // Para trampas, caes a través sin rebote
+                });
+
+                // Dibujar jugador
+                ctx.fillStyle = '#FFF';
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+
+                prevPlayerY = player.y;
+
+                // Remover plataformas fuera de pantalla
+                platforms = platforms.filter(function(platform) {
+                    return platform.y < canvas.height + 100;
+                });
+
+                // Dibujar puntuación
+                ctx.fillStyle = '#FFF';
+                ctx.font = '16px monospace';
+                ctx.fillText(`Puntuación: ${Math.floor(score)}`, 10, 20);
+            } else {
+                // UI de caída: Te has caído + Reiniciar
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = '#FFF';
+                ctx.font = '24px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('¡Te has caído!', canvas.width / 2, canvas.height / 2 - 40);
+
+                ctx.font = '16px monospace';
+                ctx.fillText(`Puntuación Final: ${finalScore}`, canvas.width / 2, canvas.height / 2);
+
+                ctx.fillText('Presiona ESPACIO o toca para Reiniciar', canvas.width / 2, canvas.height / 2 + 40);
+
+                ctx.textAlign = 'left';
+            }
+        }
+
+        // Inicializar
+        resetGame();
+        gameLoop();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Geografía</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #menu { text-align: center; margin-bottom: 20px; }
+        button { margin: 5px; padding: 10px; }
+        .game { display: none; }
+        #map { height: 400px; margin: 10px 0; }
+        #options { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Juego de Geografía</h1>
+    <div id="menu">
+        <button onclick="showGame('paises')">Adivina Países</button>
+        <button onclick="showGame('capitales')">Adivina Capitales</button>
+        <button onclick="showGame('mapa')">Marca en el Mapa</button>
+    </div>
+
+    <div id="game-paises" class="game">
+        <h2>Adivina el País</h2>
+        <p id="question-p">¿De qué país es la capital <span id="capital-name"></span>?</p>
+        <div id="options">
+            <button id="opt1-p" onclick="checkAnswer('paises', this)"></button>
+            <button id="opt2-p" onclick="checkAnswer('paises', this)"></button>
+            <button id="opt3-p" onclick="checkAnswer('paises', this)"></button>
+            <button id="opt4-p" onclick="checkAnswer('paises', this)"></button>
+        </div>
+        <button onclick="nextQuestion('paises')">Siguiente</button>
+        <p id="score-p">Puntuación: 0</p>
+    </div>
+
+    <div id="game-capitales" class="game">
+        <h2>Adivina la Capital</h2>
+        <p id="question-c">¿Cuál es la capital de <span id="country-name"></span>?</p>
+        <div id="options">
+            <button id="opt1-c" onclick="checkAnswer('capitales', this)"></button>
+            <button id="opt2-c" onclick="checkAnswer('capitales', this)"></button>
+            <button id="opt3-c" onclick="checkAnswer('capitales', this)"></button>
+            <button id="opt4-c" onclick="checkAnswer('capitales', this)"></button>
+        </div>
+        <button onclick="nextQuestion('capitales')">Siguiente</button>
+        <p id="score-c">Puntuación: 0</p>
+    </div>
+
+    <div id="game-mapa" class="game">
+        <h2>Marca en el Mapa</h2>
+        <p id="question-m">Marca la ubicación de la capital de <span id="country-m"></span>: <span id="capital-m"></span></p>
+        <div id="map"></div>
+        <p>Haz clic en el mapa para marcar.</p>
+        <button onclick="checkMark()">Verificar</button>
+        <button onclick="nextMark()">Siguiente</button>
+        <p id="result-m"></p>
+        <p id="score-m">Puntuación: 0</p>
+    </div>
+
+    <script>
+        // Lista de capitales (selección de 20 para simplicidad)
+        const capitals = [
+            { country: "Francia", capital: "París", lat: 48.8566, lng: 2.3522 },
+            { country: "Alemania", capital: "Berlín", lat: 52.5200, lng: 13.4050 },
+            { country: "España", capital: "Madrid", lat: 40.4168, lng: -3.7038 },
+            { country: "Italia", capital: "Roma", lat: 41.9028, lng: 12.4964 },
+            { country: "Reino Unido", capital: "Londres", lat: 51.5074, lng: -0.1278 },
+            { country: "Estados Unidos", capital: "Washington D.C.", lat: 38.9072, lng: -77.0369 },
+            { country: "Brasil", capital: "Brasília", lat: -15.8267, lng: -47.9218 },
+            { country: "México", capital: "Ciudad de México", lat: 19.4326, lng: -99.1332 },
+            { country: "Canadá", capital: "Ottawa", lat: 45.4215, lng: -75.6972 },
+            { country: "Japón", capital: "Tokio", lat: 35.6762, lng: 139.6503 },
+            { country: "China", capital: "Pekín", lat: 39.9042, lng: 116.4074 },
+            { country: "India", capital: "Nueva Delhi", lat: 28.6139, lng: 77.2090 },
+            { country: "Australia", capital: "Canberra", lat: -35.2809, lng: 149.1300 },
+            { country: "Rusia", capital: "Moscú", lat: 55.7558, lng: 37.6173 },
+            { country: "Sudáfrica", capital: "Pretoria", lat: -25.7463, lng: 28.1881 },
+            { country: "Egipto", capital: "El Cairo", lat: 30.0444, lng: 31.2357 },
+            { country: "Nigeria", capital: "Abuya", lat: 9.0579, lng: 7.4951 },
+            { country: "Argentina", capital: "Buenos Aires", lat: -34.6118, lng: -58.3960 },
+            { country: "Suecia", capital: "Estocolmo", lat: 59.3293, lng: 18.0686 },
+            { country: "Noruega", capital: "Oslo", lat: 59.9139, lng: 10.7522 }
+        ];
+
+        let currentGame = '';
+        let scores = { paises: 0, capitales: 0, mapa: 0 };
+        let used = { paises: new Set(), capitales: new Set(), mapa: new Set() };
+        let currentIndex = 0;
+        let map, clickMarker;
+        let currentTarget = { lat: 0, lng: 0 };
+
+        // Función para mostrar juego
+        function showGame(game) {
+            document.querySelectorAll('.game').forEach(el => el.style.display = 'none');
+            document.getElementById(`game-${game}`).style.display = 'block';
+            currentGame = game;
+            if (game === 'mapa') {
+                initMap();
+                nextMark();
+            } else {
+                nextQuestion(game);
+            }
+        }
+
+        // Función para siguiente pregunta
+        function nextQuestion(game) {
+            let usedSet = used[game];
+            let available = [];
+            for (let i = 0; i < capitals.length; i++) {
+                if (!usedSet.has(i)) available.push(i);
+            }
+            if (available.length === 0) {
+                usedSet.clear();
+                for (let i = 0; i < capitals.length; i++) {
+                    available.push(i);
+                }
+            }
+            currentIndex = available[Math.floor(Math.random() * available.length)];
+            usedSet.add(currentIndex);
+            const item = capitals[currentIndex];
+            if (game === 'paises') {
+                document.getElementById('capital-name').textContent = item.capital;
+                generateOptions('paises', item.country);
+            } else if (game === 'capitales') {
+                document.getElementById('country-name').textContent = item.country;
+                generateOptions('capitales', item.capital);
+            }
+        }
+
+        // Generar opciones múltiples
+        function generateOptions(game, correct) {
+            const options = [correct];
+            while (options.length < 4) {
+                const randItem = capitals[Math.floor(Math.random() * capitals.length)];
+                const wrong = game === 'paises' ? randItem.country : randItem.capital;
+                if (wrong !== correct && !options.includes(wrong)) {
+                    options.push(wrong);
+                }
+            }
+            options.sort(() => Math.random() - 0.5);
+            const optIds = game === 'paises' ? ['opt1-p', 'opt2-p', 'opt3-p', 'opt4-p'] : ['opt1-c', 'opt2-c', 'opt3-c', 'opt4-c'];
+            optIds.forEach((id, i) => {
+                document.getElementById(id).textContent = options[i];
+                document.getElementById(id).dataset.correct = options[i] === correct ? 'true' : 'false';
+            });
+        }
+
+        // Verificar respuesta
+        function checkAnswer(game, btn) {
+            if (btn.dataset.correct === 'true') {
+                scores[game]++;
+                alert('¡Correcto!');
+            } else {
+                alert('Incorrecto. La respuesta correcta es ' + (game === 'paises' ? document.getElementById('capital-name').textContent : document.getElementById('country-name').textContent));
+            }
+            updateScore(game);
+        }
+
+        // Actualizar puntuación
+        function updateScore(game) {
+            let scoreId;
+            if (game === 'paises') scoreId = 'p';
+            else if (game === 'capitales') scoreId = 'c';
+            else scoreId = 'm';
+            document.getElementById(`score-${scoreId}`).textContent = `Puntuación: ${scores[game]}`;
+        }
+
+        // Inicializar mapa
+        function initMap() {
+            if (map) map.remove();
+            map = L.map('map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            map.on('click', function(e) {
+                if (clickMarker) map.removeLayer(clickMarker);
+                clickMarker = L.marker(e.latlng).addTo(map);
+                currentTarget.lat = e.latlng.lat;
+                currentTarget.lng = e.latlng.lng;
+            });
+        }
+
+        // Siguiente marca
+        function nextMark() {
+            let usedSet = used.mapa;
+            let available = [];
+            for (let i = 0; i < capitals.length; i++) {
+                if (!usedSet.has(i)) available.push(i);
+            }
+            if (available.length === 0) {
+                usedSet.clear();
+                for (let i = 0; i < capitals.length; i++) {
+                    available.push(i);
+                }
+            }
+            currentIndex = available[Math.floor(Math.random() * available.length)];
+            usedSet.add(currentIndex);
+            const item = capitals[currentIndex];
+            document.getElementById('country-m').textContent = item.country;
+            document.getElementById('capital-m').textContent = item.capital;
+            document.getElementById('result-m').textContent = '';
+            if (clickMarker) map.removeLayer(clickMarker);
+            map.setView([20, 0], 2);
+            currentTarget = { lat: 0, lng: 0 };
+        }
+
+        // Verificar marca
+        function checkMark() {
+            if (!currentTarget.lat) {
+                alert('¡Marca un punto en el mapa primero!');
+                return;
+            }
+            const dist = haversine(currentTarget.lat, currentTarget.lng, capitals[currentIndex].lat, capitals[currentIndex].lng);
+            let points = 0;
+            if (dist < 50) points = 10;
+            else if (dist < 200) points = 5;
+            else if (dist < 500) points = 2;
+            else points = 1;
+            scores.mapa += points;
+            document.getElementById('result-m').innerHTML = `Distancia: ${Math.round(dist)} km. Puntos: +${points}`;
+            updateScore('mapa');
+        }
+
+        // Fórmula de Haversine
+        function haversine(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Radio de la Tierra en km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

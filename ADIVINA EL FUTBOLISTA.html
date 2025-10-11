@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Adivinar Jugadores de Fútbol</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+        }
+        .clues {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .clue {
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .correct {
+            background: #d4edda;
+            color: #155724;
+        }
+        .wrong {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .score {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>¡Adivina el Jugador de Fútbol!</h1>
+        <div class="score" id="score">Tu puntuación: <span id="scoreValue">0</span> puntos</div>
+        
+        <div class="clues" id="clues">
+            <!-- Las pistas se mostrarán aquí -->
+        </div>
+        
+        <input type="text" id="guessInput" placeholder="Escribe el nombre completo del jugador..." autocomplete="off">
+        <button onclick="checkGuess()">Adivinar</button>
+        
+        <div id="message" class="message" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Lista de jugadores con pistas (datos actualizados a conocimiento general hasta 2023; ajusta si es necesario)
+        const players = [
+            { name: "Lionel Messi", country: "Argentina", position: "Delantero", team: "Inter Miami" },
+            { name: "Cristiano Ronaldo", country: "Portugal", position: "Delantero", team: "Al-Nassr" },
+            { name: "Kylian Mbappé", country: "Francia", position: "Delantero", team: "Real Madrid" },
+            { name: "Erling Haaland", country: "Noruega", position: "Delantero", team: "Manchester City" },
+            { name: "Kevin De Bruyne", country: "Bélgica", position: "Mediocampista", team: "Manchester City" },
+            { name: "Virgil van Dijk", country: "Países Bajos", position: "Defensor", team: "Liverpool" },
+            { name: "Lautaro Martínez", country: "Argentina", position: "Delantero", team: "Inter de Milán" },
+            { name: "Robert Lewandowski", country: "Polonia", position: "Delantero", team: "Barcelona" },
+            { name: "Mohamed Salah", country: "Egipto", position: "Delantero", team: "Liverpool" },
+            { name: "Jude Bellingham", country: "Inglaterra", position: "Mediocampista", team: "Real Madrid" },
+            { name: "Vinícius Júnior", country: "Brasil", position: "Delantero", team: "Real Madrid" },
+            { name: "Harry Kane", country: "Inglaterra", position: "Delantero", team: "Bayern Múnich" },
+            { name: "Rodri", country: "España", position: "Mediocampista", team: "Manchester City" },
+            { name: "Son Heung-min", country: "Corea del Sur", position: "Delantero", team: "Tottenham" },
+            { name: "Jamal Musiala", country: "Alemania", position: "Mediocampista", team: "Bayern Múnich" }
+        ];
+
+        let shuffledPlayers = [...players];
+        let currentIndex = 0;
+        let score = 0;
+
+        // Función para barajar el array (Fisher-Yates shuffle)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // Función para mostrar pistas
+        function showClues() {
+            const player = shuffledPlayers[currentIndex];
+            const cluesDiv = document.getElementById('clues');
+            cluesDiv.innerHTML = `
+                <div class="clue">País: ${player.country}</div>
+                <div class="clue">Posición: ${player.position}</div>
+                <div class="clue">Equipo: ${player.team}</div>
+            `;
+            document.getElementById('guessInput').value = '';
+            document.getElementById('message').style.display = 'none';
+        }
+
+        // Función para verificar la adivinanza
+        function checkGuess() {
+            const guess = document.getElementById('guessInput').value.trim();
+            const player = shuffledPlayers[currentIndex];
+            
+            // Normalizar: ignorar mayúsculas y espacios extra
+            const normalizedGuess = guess.toLowerCase().replace(/\s+/g, ' ');
+            const normalizedName = player.name.toLowerCase().replace(/\s+/g, ' ');
+            
+            const messageDiv = document.getElementById('message');
+            
+            if (normalizedGuess === normalizedName) {
+                score++;
+                document.getElementById('scoreValue').textContent = score;
+                messageDiv.textContent = '¡Correcto! Ganaste un punto.';
+                messageDiv.className = 'message correct';
+                messageDiv.style.display = 'block';
+                
+                // Pasar al siguiente jugador
+                currentIndex = (currentIndex + 1) % shuffledPlayers.length;
+                if (currentIndex === 0) {
+                    // Si llegamos al final, barajar de nuevo para evitar repeticiones cíclicas obvias
+                    shuffledPlayers = shuffleArray([...players]);
+                }
+                
+                setTimeout(() => {
+                    showClues();
+                }, 2000);
+            } else {
+                messageDiv.textContent = 'Intenta de nuevo. ¡Sigue probando!';
+                messageDiv.className = 'message wrong';
+                messageDiv.style.display = 'block';
+            }
+        }
+
+        // Permitir Enter para adivinar
+        document.getElementById('guessInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkGuess();
+            }
+        });
+
+        // Inicializar el juego
+        shuffledPlayers = shuffleArray(shuffledPlayers);
+        showClues();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

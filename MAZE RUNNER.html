@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Runner - Laberinto Aleatorio</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        #maze {
+            border: 2px solid #333;
+            background-color: white;
+        }
+        #maze td {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #ddd;
+        }
+        #info {
+            margin-top: 10px;
+            text-align: center;
+        }
+        .wall {
+            background-color: #333;
+        }
+        .path {
+            background-color: white;
+        }
+        .start {
+            background-color: green;
+        }
+        .end {
+            background-color: red;
+        }
+        .player {
+            background-color: blue;
+            border-radius: 50%;
+        }
+        #winMessage {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 255, 0, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 24px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+        }
+        #winMessage button {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #fff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Maze Runner</h1>
+    <table id="maze"></table>
+    <div id="info">
+        <p id="stats">
+            <span id="difficulty">Dificultad: Media (15x15)</span> | 
+            <span id="moves">Movimientos: 0</span>
+        </p>
+        <p>Usa las flechas del teclado para moverte. ¡Llega al final (rojo)!</p>
+        <button onclick="generateMaze()">Nuevo Laberinto</button>
+    </div>
+    <div id="winMessage">
+        <h2>¡Felicidades! Has completado el laberinto.</h2>
+        <p id="finalMoves">Movimientos totales: 0</p>
+        <p>Presiona "Nuevo" para otro desafío.</p>
+        <button onclick="generateMaze()">Nuevo</button>
+    </div>
+
+    <script>
+        let ROWS, COLS;
+        let maze = [];
+        let player = { row: 0, col: 0 };
+        let moves = 0;
+        const winMessage = document.getElementById('winMessage');
+        const difficultyText = document.getElementById('difficulty');
+        const movesText = document.getElementById('moves');
+        const finalMovesText = document.getElementById('finalMoves');
+
+        function updateStats() {
+            movesText.textContent = `Movimientos: ${moves}`;
+            finalMovesText.textContent = `Movimientos totales: ${moves}`;
+        }
+
+        function generateMaze() {
+            // Dificultad aleatoria: tamaño impar entre 11 y 21
+            const size = 11 + 2 * Math.floor(Math.random() * 6); // 11,13,15,17,19,21
+            ROWS = size;
+            COLS = size;
+            maze = Array.from({ length: ROWS }, () => Array(COLS).fill(1));
+            moves = 0; // Resetear movimientos
+
+            // Algoritmo de backtracking recursivo
+            function carve(row, col) {
+                maze[row][col] = 0;
+                const directions = [
+                    [0, 2], [2, 0], [0, -2], [-2, 0]
+                ].sort(() => Math.random() - 0.5);
+
+                for (let [dr, dc] of directions) {
+                    const nr = row + dr;
+                    const nc = col + dc;
+                    if (nr > 0 && nr < ROWS - 1 && nc > 0 && nc < COLS - 1 && maze[nr][nc] === 1) {
+                        maze[row + dr / 2][col + dc / 2] = 0;
+                        carve(nr, nc);
+                    }
+                }
+            }
+
+            // Punto de inicio aleatorio (impar)
+            const startRow = 1 + 2 * Math.floor(Math.random() * ((ROWS - 1) / 2));
+            const startCol = 1 + 2 * Math.floor(Math.random() * ((COLS - 1) / 2));
+            carve(startRow, startCol);
+
+            // Inicio y fin fijos
+            maze[1][1] = 0;
+            maze[ROWS - 2][COLS - 2] = 0;
+            player.row = 1;
+            player.col = 1;
+
+            // Actualizar texto de dificultad
+            const diff = size === 11 ? 'Fácil' : size === 13 ? 'Media-Baja' : size === 15 ? 'Media' : size === 17 ? 'Media-Alta' : size === 19 ? 'Alta' : 'Muy Alta';
+            difficultyText.textContent = `Dificultad: ${diff} (${size}x${size})`;
+
+            renderMaze();
+            updateStats();
+            winMessage.style.display = 'none'; // Ocultar mensaje si estaba visible
+        }
+
+        function renderMaze() {
+            const table = document.getElementById('maze');
+            table.innerHTML = '';
+
+            for (let r = 0; r < ROWS; r++) {
+                const row = table.insertRow();
+                for (let c = 0; c < COLS; c++) {
+                    const cell = row.insertCell();
+                    cell.className = 'cell';
+                    if (maze[r][c] === 1) {
+                        cell.classList.add('wall');
+                    } else {
+                        cell.classList.add('path');
+                        if (r === player.row && c === player.col) {
+                            cell.classList.add('player');
+                        } else if (r === ROWS - 2 && c === COLS - 2) {
+                            cell.classList.add('end');
+                        } else if (r === 1 && c === 1) {
+                            cell.classList.add('start');
+                        }
+                    }
+                }
+            }
+        }
+
+        function movePlayer(dr, dc) {
+            const newRow = player.row + dr;
+            const newCol = player.col + dc;
+            if (newRow >= 0 && newRow < ROWS && newCol >= 0 && newCol < COLS && maze[newRow][newCol] === 0) {
+                player.row = newRow;
+                player.col = newCol;
+                moves++; // Incrementar movimientos
+                renderMaze();
+                updateStats();
+                if (newRow === ROWS - 2 && newCol === COLS - 2) {
+                    // Mensaje en pantalla
+                    winMessage.style.display = 'block';
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp': movePlayer(-1, 0); break;
+                case 'ArrowDown': movePlayer(1, 0); break;
+                case 'ArrowLeft': movePlayer(0, -1); break;
+                case 'ArrowRight': movePlayer(0, 1); break;
+            }
+        });
+
+        // Generar laberinto inicial
+        generateMaze();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

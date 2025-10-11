@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 con Temas Locos - ¡Elige tu Temática!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #faf8ef;
+            color: #776e65;
+            margin: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        .grid {
+            width: 400px;
+            height: 400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 10px;
+            background-color: #bbada0;
+            padding: 10px;
+            border-radius: 10px;
+        }
+        .tile {
+            background-color: #cdc1b4;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #776e65;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        .tile.thematic {
+            color: #776e65;
+        }
+        .tile small {
+            font-size: 12px;
+            font-weight: normal;
+            margin-top: 2px;
+        }
+        #score {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        button, select {
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #8f7a66;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        select {
+            background-color: #8f7a66;
+            color: white;
+        }
+        select option {
+            background-color: #faf8ef;
+            color: #776e65;
+        }
+        button:hover {
+            background-color: #9f8a76;
+        }
+        p {
+            max-width: 600px;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>¡2048 con Temáticas Locas - Elige la Tuya!</h1>
+    <p>¡Ahora con el juego original (solo números) como opción aparte! Selecciona entre Original, Pokémon, Países o Memes. Cada temática "evoluciona" al combinar. Colores clásicos. ¡Juega con flechas del teclado!</p>
+    <label for="themeSelect">Elige Temática: </label>
+    <select id="themeSelect" onchange="changeTheme()">
+        <option value="original">Original (Números)</option>
+        <option value="pokemon">Pokémon</option>
+        <option value="countries">Países</option>
+        <option value="memes">Memes</option>
+    </select>
+    <div id="score">Puntuación: 0</div>
+    <div id="grid" class="grid"></div>
+    <br>
+    <button onclick="resetGame()">Nuevo Juego</button>
+
+    <script>
+        const gridSize = 4;
+        let grid = [];
+        let score = 0;
+        let gameOver = false;
+        let currentTheme = 'original';
+
+        const themes = {
+            original: {
+                2: { name: '2', emoji: '', color: '#eee4da', textColor: '#776e65' },
+                4: { name: '4', emoji: '', color: '#ede0c8', textColor: '#776e65' },
+                8: { name: '8', emoji: '', color: '#f2b179', textColor: '#f9f6f2' },
+                16: { name: '16', emoji: '', color: '#f59563', textColor: '#f9f6f2' },
+                32: { name: '32', emoji: '', color: '#f67c5f', textColor: '#f9f6f2' },
+                64: { name: '64', emoji: '', color: '#f65e3b', textColor: '#f9f6f2' },
+                128: { name: '128', emoji: '', color: '#edcf72', textColor: '#f9f6f2' },
+                256: { name: '256', emoji: '', color: '#edcc61', textColor: '#f9f6f2' },
+                512: { name: '512', emoji: '', color: '#edc850', textColor: '#f9f6f2' },
+                1024: { name: '1024', emoji: '', color: '#edc53f', textColor: '#f9f6f2' },
+                2048: { name: '2048', emoji: '', color: '#edc22e', textColor: '#f9f6f2' },
+                4096: { name: '4096', emoji: '', color: '#3c3a32', textColor: '#f9f6f2' },
+                8192: { name: '8192', emoji: '', color: '#3c3a32', textColor: '#f9f6f2' },
+                16384: { name: '16384', emoji: '', color: '#3c3a32', textColor: '#f9f6f2' },
+                32768: { name: '32768', emoji: '', color: '#3c3a32', textColor: '#f9f6f2' },
+                65536: { name: '65536', emoji: '', color: '#3c3a32', textColor: '#f9f6f2' }
+            },
+            pokemon: {
+                2: { name: 'Bulbasaur', emoji: '🌱', color: '#eee4da', textColor: '#776e65' },
+                4: { name: 'Ivysaur', emoji: '🌿', color: '#ede0c8', textColor: '#776e65' },
+                8: { name: 'Venusaur', emoji: '🍃', color: '#f2b179', textColor: '#f9f6f2' },
+                16: { name: 'Charmander', emoji: '🔥', color: '#f59563', textColor: '#f9f6f2' },
+                32: { name: 'Charmeleon', emoji: '🧡', color: '#f67c5f', textColor: '#f9f6f2' },
+                64: { name: 'Charizard', emoji: '🐉', color: '#f65e3b', textColor: '#f9f6f2' },
+                128: { name: 'Squirtle', emoji: '💧', color: '#edcf72', textColor: '#f9f6f2' },
+                256: { name: 'Wartortle', emoji: '🐢', color: '#edcc61', textColor: '#f9f6f2' },
+                512: { name: 'Blastoise', emoji: '🌊', color: '#edc850', textColor: '#f9f6f2' },
+                1024: { name: 'Pikachu', emoji: '⚡', color: '#edc53f', textColor: '#f9f6f2' },
+                2048: { name: 'Raichu', emoji: '🐭', color: '#edc22e', textColor: '#f9f6f2' },
+                4096: { name: 'Sandshrew', emoji: '🏜️', color: '#3c3a32', textColor: '#f9f6f2' },
+                8192: { name: 'Sandslash', emoji: '🦔', color: '#3c3a32', textColor: '#f9f6f2' },
+                16384: { name: 'Nidoran♀', emoji: '🐰', color: '#3c3a32', textColor: '#f9f6f2' },
+                32768: { name: 'Nidorina', emoji: '🐇', color: '#3c3a32', textColor: '#f9f6f2' },
+                65536: { name: 'Nidoqueen', emoji: '👑🐲', color: '#3c3a32', textColor: '#f9f6f2' }
+            },
+            countries: {
+                2: { name: 'Afghanistan', emoji: '🇦🇫', color: '#eee4da', textColor: '#776e65' },
+                4: { name: 'Albania', emoji: '🇦🇱', color: '#ede0c8', textColor: '#776e65' },
+                8: { name: 'Algeria', emoji: '🇩🇿', color: '#f2b179', textColor: '#f9f6f2' },
+                16: { name: 'Andorra', emoji: '🇦🇩', color: '#f59563', textColor: '#f9f6f2' },
+                32: { name: 'Angola', emoji: '🇦🇴', color: '#f67c5f', textColor: '#f9f6f2' },
+                64: { name: 'Antigua y Barbuda', emoji: '🇦🇬', color: '#f65e3b', textColor: '#f9f6f2' },
+                128: { name: 'Argentina', emoji: '🇦🇷', color: '#edcf72', textColor: '#f9f6f2' },
+                256: { name: 'Armenia', emoji: '🇦🇲', color: '#edcc61', textColor: '#f9f6f2' },
+                512: { name: 'Australia', emoji: '🇦🇺', color: '#edc850', textColor: '#f9f6f2' },
+                1024: { name: 'Austria', emoji: '🇦🇹', color: '#edc53f', textColor: '#f9f6f2' },
+                2048: { name: 'Azerbaijan', emoji: '🇦🇿', color: '#edc22e', textColor: '#f9f6f2' },
+                4096: { name: 'Bahamas', emoji: '🇧🇸', color: '#3c3a32', textColor: '#f9f6f2' },
+                8192: { name: 'Bahrain', emoji: '🇧🇭', color: '#3c3a32', textColor: '#f9f6f2' },
+                16384: { name: 'Bangladesh', emoji: '🇧🇩', color: '#3c3a32', textColor: '#f9f6f2' },
+                32768: { name: 'Barbados', emoji: '🇧🇧', color: '#3c3a32', textColor: '#f9f6f2' },
+                65536: { name: 'Bielorrusia', emoji: '🇧🇾', color: '#3c3a32', textColor: '#f9f6f2' }
+            },
+            memes: {
+                2: { name: 'Doge', emoji: '🐕', color: '#eee4da', textColor: '#776e65' },
+                4: { name: 'Grumpy Cat', emoji: '😾', color: '#ede0c8', textColor: '#776e65' },
+                8: { name: 'Success Kid', emoji: '👶✊', color: '#f2b179', textColor: '#f9f6f2' },
+                16: { name: 'Distracted Boyfriend', emoji: '👀', color: '#f59563', textColor: '#f9f6f2' },
+                32: { name: 'Expanding Brain', emoji: '🧠', color: '#f67c5f', textColor: '#f9f6f2' },
+                64: { name: 'This is Fine', emoji: '☕', color: '#f65e3b', textColor: '#f9f6f2' },
+                128: { name: 'Drake Hotline Bling', emoji: '❌✅', color: '#edcf72', textColor: '#f9f6f2' },
+                256: { name: 'SpongeBob Mocking', emoji: '🧽😏', color: '#edcc61', textColor: '#f9f6f2' },
+                512: { name: 'Change My Mind', emoji: '🗣️💭', color: '#edc850', textColor: '#f9f6f2' },
+                1024: { name: 'Woman Yelling at Cat', emoji: '😠🐱', color: '#edc53f', textColor: '#f9f6f2' },
+                2048: { name: 'Bernie Sanders Mittens', emoji: '🧤❄️', color: '#edc22e', textColor: '#f9f6f2' },
+                4096: { name: 'Mocking SpongeBob', emoji: '🧽😂', color: '#3c3a32', textColor: '#f9f6f2' },
+                8192: { name: 'Arthur Fist', emoji: '👊😠', color: '#3c3a32', textColor: '#f9f6f2' },
+                16384: { name: 'Evil Kermit', emoji: '🐸😈', color: '#3c3a32', textColor: '#f9f6f2' },
+                32768: { name: 'Galaxy Brain', emoji: '🌌🧠', color: '#3c3a32', textColor: '#f9f6f2' },
+                65536: { name: 'Ultimate Meme', emoji: '😂🔥', color: '#3c3a32', textColor: '#f9f6f2' }
+            }
+        };
+
+        function initGrid() {
+            const gridElement = document.getElementById('grid');
+            gridElement.innerHTML = '';
+            grid = [];
+            for (let i = 0; i < gridSize; i++) {
+                grid[i] = [];
+                for (let j = 0; j < gridSize; j++) {
+                    grid[i][j] = 0;
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.id = `tile-${i}-${j}`;
+                    gridElement.appendChild(tile);
+                }
+            }
+            score = 0;
+            gameOver = false;
+            addRandomTile();
+            addRandomTile();
+            updateGrid();
+        }
+
+        function addRandomTile() {
+            const emptyCells = [];
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (grid[i][j] === 0) {
+                        emptyCells.push({ row: i, col: j });
+                    }
+                }
+            }
+            if (emptyCells.length > 0) {
+                const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                grid[randomCell.row][randomCell.col] = Math.random() < 0.9 ? 2 : 4;
+            }
+        }
+
+        function updateGrid() {
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const tile = document.getElementById(`tile-${i}-${j}`);
+                    const value = grid[i][j];
+                    if (value === 0) {
+                        tile.innerHTML = '';
+                        tile.className = 'tile';
+                        tile.style.backgroundColor = '';
+                        tile.style.color = '';
+                    } else {
+                        const theme = themes[currentTheme][value];
+                        if (theme) {
+                            const displayText = theme.emoji ? `${theme.emoji}<br><small>${theme.name}</small>` : theme.name;
+                            tile.innerHTML = displayText;
+                            tile.className = theme.emoji ? 'tile thematic' : 'tile';
+                            tile.style.backgroundColor = theme.color;
+                            tile.style.color = theme.textColor;
+                        } else {
+                            tile.innerHTML = value;
+                            tile.style.backgroundColor = getColor(value);
+                            tile.style.color = value <= 4 ? '#776e65' : '#f9f6f2';
+                        }
+                    }
+                }
+            }
+            document.getElementById('score').textContent = `Puntuación: ${score}`;
+            checkGameOver();
+        }
+
+        function changeTheme() {
+            currentTheme = document.getElementById('themeSelect').value;
+            updateGrid(); // Re-renderiza con la nueva temática
+        }
+
+        function getColor(value) {
+            const colors = {
+                2: '#eee4da', 4: '#ede0c8', 8: '#f2b179', 16: '#f59563',
+                32: '#f67c5f', 64: '#f65e3b', 128: '#edcf72', 256: '#edcc61',
+                512: '#edc850', 1024: '#edc53f', 2048: '#edc22e'
+            };
+            return colors[value] || '#3c3a32';
+        }
+
+        function slideRow(row) {
+            let newRow = row.filter(val => val !== 0);
+            for (let i = 0; i < newRow.length - 1; i++) {
+                if (newRow[i] === newRow[i + 1]) {
+                    newRow[i] *= 2;
+                    score += newRow[i];
+                    newRow.splice(i + 1, 1);
+                    i--; // Revisa el siguiente después de la fusión
+                }
+            }
+            while (newRow.length < gridSize) {
+                newRow.push(0);
+            }
+            return newRow;
+        }
+
+        function moveLeft() {
+            if (gameOver) return;
+            let moved = false;
+            for (let i = 0; i < gridSize; i++) {
+                const oldRow = [...grid[i]];
+                grid[i] = slideRow(grid[i]);
+                if (JSON.stringify(grid[i]) !== JSON.stringify(oldRow)) moved = true;
+            }
+            if (moved) addRandomTile();
+            updateGrid();
+        }
+
+        function moveRight() {
+            if (gameOver) return;
+            let moved = false;
+            for (let i = 0; i < gridSize; i++) {
+                const row = [...grid[i]].reverse();
+                const newRow = slideRow(row).reverse();
+                const oldRow = [...grid[i]];
+                grid[i] = newRow;
+                if (JSON.stringify(newRow) !== JSON.stringify(oldRow)) moved = true;
+            }
+            if (moved) addRandomTile();
+            updateGrid();
+        }
+
+        function moveUp() {
+            if (gameOver) return;
+            let moved = false;
+            for (let j = 0; j < gridSize; j++) {
+                const column = [];
+                for (let i = 0; i < gridSize; i++) {
+                    column.push(grid[i][j]);
+                }
+                const newColumn = slideRow(column);
+                const oldColumn = [...column];
+                for (let i = 0; i < gridSize; i++) {
+                    grid[i][j] = newColumn[i];
+                }
+                if (JSON.stringify(newColumn) !== JSON.stringify(oldColumn)) moved = true;
+            }
+            if (moved) addRandomTile();
+            updateGrid();
+        }
+
+        function moveDown() {
+            if (gameOver) return;
+            let moved = false;
+            for (let j = 0; j < gridSize; j++) {
+                const column = [];
+                for (let i = 0; i < gridSize; i++) {
+                    column.push(grid[i][j]);
+                }
+                const row = column.reverse();
+                const newRow = slideRow(row).reverse();
+                const oldColumn = [...column];
+                for (let i = 0; i < gridSize; i++) {
+                    grid[i][j] = newRow[i];
+                }
+                if (JSON.stringify(newRow) !== JSON.stringify(oldColumn.reverse())) moved = true;
+            }
+            if (moved) addRandomTile();
+            updateGrid();
+        }
+
+        function checkGameOver() {
+            let hasEmpty = false;
+            let canMerge = false;
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (grid[i][j] === 0) hasEmpty = true;
+                    if (j < gridSize - 1 && grid[i][j] === grid[i][j + 1]) canMerge = true;
+                    if (i < gridSize - 1 && grid[i][j] === grid[i + 1][j]) canMerge = true;
+                }
+            }
+            if (!hasEmpty && !canMerge) {
+                gameOver = true;
+                alert(`¡Game Over! Puntuación final: ${score}`);
+            }
+        }
+
+        function checkWin() {
+            const maxValue = 65536; // Límite para victoria
+            for (let value = 2048; value <= maxValue; value *= 2) {
+                for (let i = 0; i < gridSize; i++) {
+                    for (let j = 0; j < gridSize; j++) {
+                        if (grid[i][j] === value) {
+                            const theme = themes[currentTheme][value];
+                            alert(`¡Épico! Llegaste a ${theme ? theme.name : value} en ${currentTheme}. ¡Sigue por más!`);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        function handleKey(e) {
+            e.preventDefault();
+            if (gameOver) return;
+            switch (e.key) {
+                case 'ArrowLeft': moveLeft(); break;
+                case 'ArrowRight': moveRight(); break;
+                case 'ArrowUp': moveUp(); break;
+                case 'ArrowDown': moveDown(); break;
+            }
+            checkWin();
+        }
+
+        function resetGame() {
+            initGrid();
+        }
+
+        document.addEventListener('keydown', handleKey);
+        initGrid();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

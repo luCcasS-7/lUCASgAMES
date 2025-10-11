@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corre por tu Vida - Runner Infinito</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #333;
+            background-color: #90EE90;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #000;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 5px;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="instructions">
+        SPACE (breve): Salto bajo para obstáculo bajo | Mantén SPACE: Salto alto para doble | ↓: Agacharse para pájaros (¡NO saltes!)
+    </div>
+    <div id="gameOver">
+        <h2>¡Game Over!</h2>
+        <p>Puntuación: <span id="finalScore">0</span></p>
+        <button onclick="restartGame()">Reiniciar</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverDiv = document.getElementById('gameOver');
+        const finalScoreSpan = document.getElementById('finalScore');
+
+        // Variables del juego
+        let gameRunning = true;
+        let score = 0;
+        let speed = 3; // Empieza más lento para fácil
+        let gravity = 0.6;
+        let jumpPowerLow = -10;
+        let jumpPowerHigh = -15;
+        let isSpaceDown = false;
+        let jumpStartTime = 0;
+        let hasBoosted = false;
+        let crouching = false;
+        let player = {
+            x: 100,
+            y: 300,
+            width: 40,
+            height: 60,
+            vy: 0,
+            jumping: false
+        };
+        let obstacles = [];
+        let groundY = 360;
+
+        // Función para dibujar al jugador (personaje simple)
+        function drawPlayer() {
+            let headOffset = player.height === 60 ? 15 : 8;
+            let headRadius = player.height === 60 ? 15 : 12;
+            let eyeY = player.y + headOffset - 3;
+
+            // Cuerpo
+            ctx.fillStyle = '#FF4500';
+            let bodyY = player.y + headRadius;
+            let bodyH = player.height - headRadius;
+            ctx.fillRect(player.x, bodyY, player.width, bodyH);
+
+            // Cabeza
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(player.x + 20, player.y + headOffset, headRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ojos
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(player.x + 15, eyeY, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(player.x + 25, eyeY, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Función para dibujar el suelo
+        function drawGround() {
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+        }
+
+        // Función para dibujar obstáculos
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                if (obstacle.type === 'ground') {
+                    ctx.fillStyle = '#8B0000';
+                } else {
+                    ctx.fillStyle = '#4169E1';
+                }
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+        }
+
+        // Función para actualizar al jugador
+        function updatePlayer() {
+            if (player.jumping) {
+                player.height = 60; // No agacharse en el aire
+                // Boost para salto alto si mantienes SPACE
+                if (isSpaceDown && Date.now() - jumpStartTime > 200 && !hasBoosted) {
+                    player.vy = jumpPowerHigh;
+                    hasBoosted = true;
+                }
+                player.vy += gravity;
+                player.y += player.vy;
+                if (player.y >= groundY - 60) {
+                    player.y = groundY - (crouching ? 30 : 60);
+                    player.height = crouching ? 30 : 60;
+                    player.vy = 0;
+                    player.jumping = false;
+                    hasBoosted = false;
+                }
+            } else {
+                // En el suelo
+                if (crouching) {
+                    player.height = 30;
+                    player.y = groundY - 30;
+                } else {
+                    player.height = 60;
+                    player.y = groundY - 60;
+                }
+            }
+        }
+
+        // Función para generar obstáculos (dificultad aumenta con score)
+        function generateObstacle() {
+            const minDist = 200;
+            const canSpawn = obstacles.length === 0 || obstacles[obstacles.length - 1].x < canvas.width - minDist;
+            // Probabilidad inicial baja, aumenta con score (máx 0.03)
+            let prob = Math.min(0.01 + (score / 1000) * 0.02, 0.03);
+            if (canSpawn && Math.random() < prob) {
+                const isBird = Math.random() < 0.4;
+                let obstacle = {
+                    x: canvas.width,
+                    width: isBird ? 40 : 30
+                };
+                if (isBird) {
+                    obstacle.y = 160;
+                    obstacle.height = 141;
+                    obstacle.type = 'bird';
+                } else {
+                    // Probabilidad de doble aumenta con score (de 0.2 a 0.6)
+                    const isDouble = Math.random() < (0.2 + (score / 1000) * 0.4);
+                    obstacle.height = isDouble ? 100 : 50;
+                    obstacle.y = groundY - obstacle.height;
+                    obstacle.type = 'ground';
+                }
+                obstacles.push(obstacle);
+            }
+        }
+
+        // Función para actualizar obstáculos
+        function updateObstacles() {
+            obstacles.forEach((obstacle, index) => {
+                obstacle.x -= speed;
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacles.splice(index, 1);
+                    score += 10;
+                }
+            });
+        }
+
+        // Función para detectar colisiones
+        function checkCollisions() {
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    gameOver();
+                }
+            });
+        }
+
+        // Función para dibujar puntuación
+        function drawScore() {
+            ctx.fillStyle = '#000';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Puntuación: ${score}`, 10, 30);
+        }
+
+        // Función para actualizar el juego
+        function update() {
+            if (!gameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGround();
+            updatePlayer();
+            generateObstacle();
+            updateObstacles();
+            checkCollisions();
+            drawPlayer();
+            drawObstacles();
+            drawScore();
+
+            // Aumentar velocidad gradualmente (más notorio al inicio)
+            speed += 0.0005 + (score / 10000) * 0.0005; // Incremento base + bonus por score
+
+            requestAnimationFrame(update);
+        }
+
+        // Eventos de teclado
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                isSpaceDown = true;
+                if (!player.jumping) {
+                    player.vy = jumpPowerLow;
+                    player.jumping = true;
+                    jumpStartTime = Date.now();
+                    hasBoosted = false;
+                }
+            } else if (e.code === 'ArrowDown') {
+                crouching = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space') {
+                isSpaceDown = false;
+            } else if (e.code === 'ArrowDown') {
+                crouching = false;
+            }
+        });
+
+        // Función de game over
+        function gameOver() {
+            gameRunning = false;
+            finalScoreSpan.textContent = score;
+            gameOverDiv.style.display = 'block';
+        }
+
+        // Función para reiniciar
+        function restartGame() {
+            gameRunning = true;
+            score = 0;
+            speed = 3; // Reset a fácil
+            player.y = 300;
+            player.height = 60;
+            player.vy = 0;
+            player.jumping = false;
+            crouching = false;
+            isSpaceDown = false;
+            hasBoosted = false;
+            jumpStartTime = 0;
+            obstacles = [];
+            gameOverDiv.style.display = 'none';
+            update();
+        }
+
+        // Iniciar el juego
+        update();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

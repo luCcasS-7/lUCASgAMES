@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Clase Online - ¡No te duermas! Con Webcam y Puntuación 😴</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        .simulador {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            width: 90%;
+            max-width: 900px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .pantalla {
+            border: 1px solid #ccc;
+            height: 200px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #e6f3ff;
+        }
+        .profe {
+            font-style: italic;
+            color: #0066cc;
+            font-weight: bold;
+        }
+        .alerta-profe {
+            color: #f44336;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .webcam-container {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+        }
+        #video {
+            width: 200px;
+            height: 150px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #canvas {
+            display: none; /* Hidden for face-api */
+        }
+        .atencion {
+            width: 100%;
+            background: #ddd;
+            height: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .barra {
+            height: 100%;
+            background: #4caf50;
+            width: 100%;
+            transition: width 0.5s;
+        }
+        .bajo {
+            background: #ff9800;
+        }
+        .critico {
+            background: #f44336;
+        }
+        .puntuacion {
+            width: 100%;
+            background: #ddd;
+            height: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .barra-puntuacion {
+            height: 100%;
+            background: #2196f3;
+            width: 100%;
+            transition: width 0.5s;
+        }
+        .baja-puntuacion {
+            background: #ff9800;
+        }
+        .critica-puntuacion {
+            background: #f44336;
+        }
+        .controles {
+            text-align: center;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .game-over {
+            text-align: center;
+            color: #f44336;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .victoria {
+            text-align: center;
+            color: #4caf50;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 80%;
+        }
+        #yt-video {
+            width: 100%;
+            height: 300px;
+        }
+        .status {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 10px 0;
+        }
+        .stat {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="simulador">
+        <h1>SIMULADOR DE CLASE ONLINE 😂 Con Webcam y Puntuación</h1>
+        <p>¡Evita dormirte! La webcam detecta si no estás presente. Si el profe te "ve" dormido (sin cara), baja la puntuación en tiempo real. Si atención = 0, reproduce video de YT de una reunión aburrida para despertarte. ¡Mantén todo alto!</p>
+        
+        <div class="webcam-container">
+            <video id="video" autoplay muted></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        <div class="status" id="status">Cargando detección...</div>
+        
+        <div class="stats">
+            <div class="stat">
+                <p>Atención: <span id="nivel">100%</span></p>
+                <div class="atencion">
+                    <div class="barra" id="barra"></div>
+                </div>
+            </div>
+            <div class="stat">
+                <p>Puntuación: <span id="puntuacion">100</span></p>
+                <div class="puntuacion">
+                    <div class="barra-puntuacion" id="barraPuntuacion"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pantalla" id="pantalla">
+            <div class="profe">¡Buenos días, clase! Hoy vamos a hablar de historia antigua...</div>
+        </div>
+        
+        <div class="controles">
+            <button id="atentoBtn" onclick="mantenerAtento()">¡Estoy atento! 👀 (+10% atención)</button>
+            <button id="dormirBtn" onclick="dormir()">Bostezar 😴 (-20% atención)</button>
+        </div>
+        
+        <div id="resultado"></div>
+    </div>
+
+    <!-- Modal para video de YT -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2>¡Te pilló el profe dormido! 😴 Mira este video de YT para no volver a pasar...</h2>
+            <iframe id="yt-video" src="https://www.youtube.com/embed/yZpEpNPaxsw?autoplay=1" frameborder="0" allowfullscreen></iframe>
+            <br><button onclick="cerrarModal()">Cerrar y continuar (pierdes 20 pts extra)</button>
+        </div>
+    </div>
+
+    <!-- Face-api.js -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+    <script>
+        let atencion = 100;
+        let puntuacion = 100;
+        let intervalo;
+        let claseTerminada = false;
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let ultimoDeteccion = Date.now();
+        let sinCaraTimer = 0;
+        const SIN_CARA_TIEMPO = 8000; // 8 segundos sin cara = profe nota
+        let modal = document.getElementById('modal');
+        let profeNotando = false;
+        let deteccionesRecientes = []; // Para simular "vista" del profe
+
+        // Inicializar Face API
+        async function initFaceApi() {
+            await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights');
+            document.getElementById('status').textContent = 'Detección activa. ¡Mantén la cara visible!';
+            detectarCara();
+        }
+
+        // Acceder a webcam
+        async function initWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    initFaceApi();
+                };
+            } catch (err) {
+                alert('Error al acceder a la cámara: ' + err.message + '. Modo manual con botones.');
+                document.getElementById('status').textContent = 'Sin cámara. Usa botones para simular.';
+                iniciarClase(); // Iniciar sin detección
+            }
+        }
+
+        // Detectar cara en tiempo real
+        function detectarCara() {
+            if (claseTerminada) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const detections = faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions())
+                .withFaceLandmarks();
+            
+            const ahora = Date.now();
+            if (detections.length > 0) {
+                ultimoDeteccion = ahora;
+                sinCaraTimer = 0;
+                deteccionesRecientes.push(ahora);
+                if (deteccionesRecientes.length > 10) deteccionesRecientes.shift(); // Mantener últimas 10
+                document.getElementById('status').textContent = 'Cara detectada 👀 - Profe no nota nada.';
+                profeNotando = false;
+                // Baja atención lento si atento
+                atencion = Math.max(0, atencion - 0.3);
+            } else {
+                sinCaraTimer = ahora - ultimoDeteccion;
+                document.getElementById('status').textContent = `Sin cara por ${Math.round(sinCaraTimer/1000)}s... ¡Profe podría verte! Zzz`;
+                if (sinCaraTimer > SIN_CARA_TIEMPO && !profeNotando && Math.random() < 0.7) { // 70% chance de que profe note
+                    profeNotaDormido();
+                }
+                // Baja más rápido sin cara
+                atencion = Math.max(0, atencion - 2);
+            }
+            
+            actualizarBarras();
+            if (atencion <= 0) {
+                gameOver();
+            }
+            requestAnimationFrame(detectarCara);
+        }
+
+        function profeNotaDormido() {
+            profeNotando = true;
+            const penalizacion = 10 + Math.random() * 10; // 10-20 pts
+            puntuacion = Math.max(0, puntuacion - penalizacion);
+            mostrarMensaje(`<div class="profe alerta-profe">¡${nombreProfe()}! ¿Estás dormido? ¡Te quito ${Math.round(penalizacion)} puntos! 😠</div>`);
+            document.getElementById('status').textContent = '¡Profe te vio dormido! Puntuación bajada.';
+            if (puntuacion <= 0) {
+                gameOverConVideo();
+            }
+            // Reset nota después de 5s
+            setTimeout(() => { profeNotando = false; }, 5000);
+        }
+
+        function nombreProfe() {
+            const nombres = ['Profe García', 'La maestra López', 'Don Ruiz', 'Sra. Mendoza'];
+            return nombres[Math.floor(Math.random() * nombres.length)];
+        }
+
+        function actualizarBarras() {
+            // Atención
+            const barra = document.getElementById('barra');
+            const nivel = document.getElementById('nivel');
+            barra.style.width = atencion + '%';
+            nivel.textContent = Math.round(atencion) + '%';
+            
+            if (atencion > 30) {
+                barra.className = 'barra';
+            } else if (atencion > 0) {
+                barra.className = 'barra bajo';
+            } else {
+                barra.className = 'barra critico';
+            }
+
+            // Puntuación
+            const barraP = document.getElementById('barraPuntuacion');
+            const nivelP = document.getElementById('puntuacion');
+            barraP.style.width = (puntuacion / 100 * 100) + '%';
+            nivelP.textContent = Math.round(puntuacion);
+            
+            if (puntuacion > 30) {
+                barraP.className = 'barra-puntuacion';
+            } else if (puntuacion > 0) {
+                barraP.className = 'barra-puntuacion baja-puntuacion';
+            } else {
+                barraP.className = 'barra-puntuacion critica-puntuacion';
+            }
+        }
+
+        function mostrarMensaje(msg) {
+            const pantalla = document.getElementById('pantalla');
+            pantalla.innerHTML += '<div>' + msg + '</div>';
+            pantalla.scrollTop = pantalla.scrollHeight;
+        }
+
+        function gameOver() {
+            claseTerminada = true;
+            clearInterval(intervalo);
+            document.getElementById('atentoBtn').disabled = true;
+            document.getElementById('dormirBtn').disabled = true;
+            document.getElementById('resultado').innerHTML = `<div class="game-over">¡Atención agotada! Final: ${Math.round(puntuacion)} pts. 😴 Recarga para nuevo intento.</div>`;
+            mostrarMensaje('¡Zzz... Clase interrumpida!');
+        }
+
+        function gameOverConVideo() {
+            claseTerminada = true;
+            clearInterval(intervalo);
+            document.getElementById('atentoBtn').disabled = true;
+            document.getElementById('dormirBtn').disabled = true;
+            mostrarMensaje('¡Puntuación en 0! Activando video de YT de reunión aburrida...');
+            modal.style.display = 'flex';
+            document.getElementById('resultado').innerHTML = '<div class="game-over">¡Game Over! Mira el video y reflexiona. 😂</div>';
+        }
+
+        function cerrarModal() {
+            modal.style.display = 'none';
+            puntuacion = Math.max(0, puntuacion - 20); // Penalización extra por cerrar
+            actualizarBarras();
+            claseTerminada = false;
+            document.getElementById('atentoBtn').disabled = false;
+            document.getElementById('dormirBtn').disabled = false;
+            iniciarClase(); // Reiniciar
+        }
+
+        function victoria() {
+            claseTerminada = true;
+            clearInterval(intervalo);
+            document.getElementById('atentoBtn').disabled = true;
+            document.getElementById('dormirBtn').disabled = true;
+            document.getElementById('resultado').innerHTML = `<div class="victoria">¡Clase completada! Final: ${Math.round(puntuacion)} pts. 🎉 ¡Sobreviviste!</div>`;
+            mostrarMensaje('¡Fin de clase! Excelente atención.');
+        }
+
+        function mantenerAtento() {
+            if (claseTerminada) return;
+            atencion = Math.min(100, atencion + 10);
+            puntuacion = Math.min(100, puntuacion + 5); // Bonus por atención
+            actualizarBarras();
+            mostrarMensaje('¡Genial! El profe asiente: "Bien por ti." 👍');
+        }
+
+        function dormir() {
+            if (claseTerminada) return;
+            atencion = Math.max(0, atencion - 20);
+            puntuacion = Math.max(0, puntuacion - 5);
+            actualizarBarras();
+            mostrarMensaje('Bostezaste... El profe frunce el ceño.');
+            if (atencion <= 0) {
+                gameOver();
+            }
+        }
+
+        // Iniciar la clase (backup para sin cámara)
+        function iniciarClase() {
+            intervalo = setInterval(() => {
+                if (!claseTerminada) {
+                    // Simular baja gradual si no hay detección
+                    if (sinCaraTimer < SIN_CARA_TIEMPO / 2) {
+                        atencion = Math.max(0, atencion - 1);
+                        puntuacion = Math.max(0, puntuacion - 0.5);
+                    }
+                    actualizarBarras();
+                    if (atencion <= 0) {
+                        gameOver();
+                    } else if (puntuacion <= 0) {
+                        gameOverConVideo();
+                    }
+                }
+            }, 2000);
+
+            setTimeout(() => {
+                if (!claseTerminada && atencion > 0 && puntuacion > 0) {
+                    victoria();
+                }
+            }, 120000); // 2 min
+        }
+
+        // Mensajes aleatorios del profe
+        const mensajesProfe = [
+            '¿Alguien sabe sobre la Revolución Industrial?',
+            '¡Esto sale en el examen, atiendan!',
+            'Miren la diapositiva...',
+            'No se distraigan con el celular.',
+            'Buena intervención de María.'
+        ];
+
+        setInterval(() => {
+            if (!claseTerminada && Math.random() < 0.3) {
+                const msg = mensajesProfe[Math.floor(Math.random() * mensajesProfe.length)];
+                mostrarMensaje('<div class="profe">' + msg + '</div>');
+            }
+        }, 10000);
+
+        // Inicializar
+        actualizarBarras();
+        initWebcam();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

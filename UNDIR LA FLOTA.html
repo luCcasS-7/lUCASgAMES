@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hundir la Flota - Battleship</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+        .game-container {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-template-rows: repeat(10, 30px);
+            gap: 1px;
+            background-color: #000;
+            margin: 10px auto;
+            padding: 10px;
+            border: 2px solid #333;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #add8e6;
+            border: 1px solid #fff;
+            cursor: pointer;
+        }
+        .cell:hover {
+            background-color: #87ceeb;
+        }
+        .cell.hit { background-color: red; }
+        .cell.miss { background-color: gray; }
+        .cell.ship { background-color: #4682b4; }
+        .status {
+            margin: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Hundir la Flota (Battleship)</h1>
+    <p>Juego de tablero por turnos contra la IA. Los barcos se colocan automáticamente. Dispara al tablero enemigo haciendo clic en las celdas.</p>
+    
+    <div class="game-container">
+        <div>
+            <h2>Tu Flota</h2>
+            <div id="playerBoard" class="board"></div>
+        </div>
+        <div>
+            <h2>Flota Enemiga</h2>
+            <div id="enemyBoard" class="board"></div>
+        </div>
+    </div>
+    
+    <div class="status" id="status">Iniciando juego...</div>
+    <button id="resetBtn">Nuevo Juego</button>
+    
+    <script>
+        // Configuración del juego
+        const BOARD_SIZE = 10;
+        const SHIPS = [
+            { size: 5, name: 'Portaaviones' },
+            { size: 4, name: 'Acorazado' },
+            { size: 3, name: 'Crucero' },
+            { size: 3, name: 'Submarino' },
+            { size: 2, name: 'Destructor' }
+        ];
+        
+        // Estados de las celdas
+        const STATES = {
+            EMPTY: 0,
+            HIT: 2,
+            MISS: 3
+        };
+        
+        // Variables del juego
+        let playerShips = []; // array de {row, col} para barcos del jugador
+        let enemyShips = []; // array de {row, col} para barcos del enemigo
+        let playerShots = []; // matriz de disparos del jugador al enemigo
+        let enemyShots = []; // matriz de disparos del enemigo al jugador
+        let gameOver = false;
+        let currentPlayerTurn = true; // true: jugador, false: IA
+        
+        // Inicializar tableros
+        function initBoards() {
+            playerShips = [];
+            enemyShips = [];
+            playerShots = Array.from({length: BOARD_SIZE}, () => Array(BOARD_SIZE).fill(STATES.EMPTY));
+            enemyShots = Array.from({length: BOARD_SIZE}, () => Array(BOARD_SIZE).fill(STATES.EMPTY));
+        }
+        
+        // Colocar barcos del jugador aleatoriamente
+        function placePlayerShips() {
+            SHIPS.forEach(ship => {
+                let placed = false;
+                while (!placed) {
+                    const row = Math.floor(Math.random() * BOARD_SIZE);
+                    const col = Math.floor(Math.random() * BOARD_SIZE);
+                    const direction = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+                    const shipCells = [];
+                    let valid = true;
+                    for (let i = 0; i < ship.size; i++) {
+                        let r = row, c = col;
+                        if (direction === 'horizontal') {
+                            c += i;
+                        } else {
+                            r += i;
+                        }
+                        if (r >= BOARD_SIZE || c >= BOARD_SIZE || playerShips.some(cell => cell.row === r && cell.col === c)) {
+                            valid = false;
+                            break;
+                        }
+                        shipCells.push({row: r, col: c});
+                    }
+                    if (valid) {
+                        playerShips.push(...shipCells);
+                        placed = true;
+                    }
+                }
+            });
+        }
+        
+        // Colocar barcos del enemigo aleatoriamente
+        function placeEnemyShips() {
+            SHIPS.forEach(ship => {
+                let placed = false;
+                while (!placed) {
+                    const row = Math.floor(Math.random() * BOARD_SIZE);
+                    const col = Math.floor(Math.random() * BOARD_SIZE);
+                    const direction = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+                    const shipCells = [];
+                    let valid = true;
+                    for (let i = 0; i < ship.size; i++) {
+                        let r = row, c = col;
+                        if (direction === 'horizontal') {
+                            c += i;
+                        } else {
+                            r += i;
+                        }
+                        if (r >= BOARD_SIZE || c >= BOARD_SIZE || enemyShips.some(cell => cell.row === r && cell.col === c)) {
+                            valid = false;
+                            break;
+                        }
+                        shipCells.push({row: r, col: c});
+                    }
+                    if (valid) {
+                        enemyShips.push(...shipCells);
+                        placed = true;
+                    }
+                }
+            });
+        }
+        
+        // Verificar si un disparo impacta un barco
+        function isHit(ships, row, col) {
+            return ships.some(cell => cell.row === row && cell.col === col);
+        }
+        
+        // Verificar si todos los barcos están hundidos
+        function isAllShipsSunk(ships, shots) {
+            return ships.every(cell => shots[cell.row][cell.col] === STATES.HIT);
+        }
+        
+        // Renderizar tablero del jugador (muestra barcos y disparos enemigos)
+        function renderPlayerBoard() {
+            const boardElement = document.getElementById('playerBoard');
+            boardElement.innerHTML = '';
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    const shot = enemyShots[row][col];
+                    const isShip = playerShips.some(s => s.row === row && s.col === col);
+                    
+                    if (shot === STATES.HIT) {
+                        cell.classList.add('hit');
+                    } else if (shot === STATES.MISS) {
+                        cell.classList.add('miss');
+                    } else if (isShip) {
+                        cell.classList.add('ship');
+                    }
+                    
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+        
+        // Renderizar tablero enemigo (muestra solo disparos del jugador)
+        function renderEnemyBoard() {
+            const boardElement = document.getElementById('enemyBoard');
+            boardElement.innerHTML = '';
+            for (let row = 0; row < BOARD_SIZE; row++) {
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    const shot = playerShots[row][col];
+                    if (shot === STATES.HIT) {
+                        cell.classList.add('hit');
+                    } else if (shot === STATES.MISS) {
+                        cell.classList.add('miss');
+                    }
+                    
+                    if (currentPlayerTurn && !gameOver) {
+                        cell.addEventListener('click', handlePlayerShot);
+                    }
+                    
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+        
+        // Manejar disparo del jugador
+        function handlePlayerShot(e) {
+            if (!currentPlayerTurn || gameOver) return;
+            const row = parseInt(e.target.dataset.row);
+            const col = parseInt(e.target.dataset.col);
+            if (playerShots[row][col] !== STATES.EMPTY) return;
+            
+            const hit = isHit(enemyShips, row, col);
+            playerShots[row][col] = hit ? STATES.HIT : STATES.MISS;
+            
+            renderEnemyBoard();
+            
+            if (hit) {
+                document.getElementById('status').textContent = '¡Impacto!';
+                if (isAllShipsSunk(enemyShips, playerShots)) {
+                    endGame('¡Ganaste! Hundiste toda la flota enemiga.');
+                    return;
+                }
+            } else {
+                document.getElementById('status').textContent = '¡Agua!';
+            }
+            
+            currentPlayerTurn = false;
+            setTimeout(aiTurn, 1000);
+        }
+        
+        // Turno de la IA
+        function aiTurn() {
+            if (currentPlayerTurn || gameOver) return;
+            let row, col;
+            do {
+                row = Math.floor(Math.random() * BOARD_SIZE);
+                col = Math.floor(Math.random() * BOARD_SIZE);
+            } while (enemyShots[row][col] !== STATES.EMPTY);
+            
+            const hit = isHit(playerShips, row, col);
+            enemyShots[row][col] = hit ? STATES.HIT : STATES.MISS;
+            
+            renderPlayerBoard();
+            
+            if (hit) {
+                document.getElementById('status').textContent = '¡La IA impactó tu barco!';
+                if (isAllShipsSunk(playerShips, enemyShots)) {
+                    endGame('¡Perdiste! La IA hundió tu flota.');
+                    return;
+                }
+            } else {
+                document.getElementById('status').textContent = 'La IA falló.';
+            }
+            
+            currentPlayerTurn = true;
+            document.getElementById('status').textContent = 'Tu turno. Dispara al tablero enemigo.';
+        }
+        
+        // Terminar juego
+        function endGame(message) {
+            gameOver = true;
+            document.getElementById('status').textContent = message;
+        }
+        
+        // Reiniciar juego
+        function initGame() {
+            initBoards();
+            placePlayerShips();
+            placeEnemyShips();
+            gameOver = false;
+            currentPlayerTurn = true;
+            renderPlayerBoard();
+            renderEnemyBoard();
+            document.getElementById('status').textContent = 'Tu turno. Dispara al tablero enemigo.';
+        }
+        
+        // Event listener para nuevo juego
+        document.getElementById('resetBtn').addEventListener('click', initGame);
+        
+        // Iniciar el juego al cargar
+        initGame();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

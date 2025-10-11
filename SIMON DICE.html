@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simón Dice (Simon Says)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+        }
+        .game-container {
+            text-align: center;
+        }
+        .simon {
+            display: grid;
+            grid-template-columns: repeat(2, 150px);
+            grid-template-rows: repeat(2, 150px);
+            gap: 20px;
+            margin: 20px auto;
+        }
+        .panel {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .panel:active {
+            transform: scale(0.95);
+        }
+        #top-left {
+            background-color: #00ff00; /* Verde */
+        }
+        #top-right {
+            background-color: #ff0000; /* Rojo */
+        }
+        #bottom-left {
+            background-color: #0000ff; /* Azul */
+        }
+        #bottom-right {
+            background-color: #ffff00; /* Amarillo */
+        }
+        .panel.light {
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+        }
+        #start-btn, #strict-btn {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #display {
+            font-size: 48px;
+            margin: 20px;
+            min-width: 100px;
+            background-color: #000;
+            border: 2px solid #fff;
+            display: inline-block;
+        }
+        #message {
+            font-size: 24px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Simón Dice</h1>
+        <div id="display">0</div>
+        <div id="message">Presiona START para comenzar</div>
+        <div class="simon">
+            <div class="panel" id="top-left"></div>
+            <div class="panel" id="top-right"></div>
+            <div class="panel" id="bottom-left"></div>
+            <div class="panel" id="bottom-right"></div>
+        </div>
+        <button id="start-btn">START</button>
+        <button id="strict-btn">STRICT</button>
+    </div>
+
+    <script>
+        class SimonGame {
+            constructor() {
+                this.sequence = [];
+                this.playerSequence = [];
+                this.step = 0;
+                this.gameOn = false;
+                this.strictMode = false;
+                this.colors = {
+                    0: 'top-left', // Verde
+                    1: 'top-right', // Rojo
+                    2: 'bottom-left', // Azul
+                    3: 'bottom-right' // Amarillo
+                };
+                this.sounds = {
+                    0: new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBAlP9/QFJRQCRlf0BSUUAnZX9AU'),
+                    1: new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBAlP9/QFJRQCRlf0BSUUAnZX9AU'),
+                    2: new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBAlP9/QFJRQCRlf0BSUUAnZX9AU'),
+                    3: new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBAlP9/QFJRQCRlf0BSUUAnZX9AU')
+                };
+                // Nota: Los sonidos son placeholders; en una implementación real, usa archivos de audio apropiados.
+                this.init();
+            }
+
+            init() {
+                document.getElementById('start-btn').addEventListener('click', () => this.startGame());
+                document.getElementById('strict-btn').addEventListener('click', () => this.toggleStrict());
+                const panels = document.querySelectorAll('.panel');
+                panels.forEach(panel => {
+                    panel.addEventListener('click', (e) => this.playerTurn(e.target.id));
+                });
+            }
+
+            startGame() {
+                this.sequence = [];
+                this.playerSequence = [];
+                this.step = 0;
+                this.gameOn = true;
+                this.nextRound();
+                document.getElementById('message').textContent = 'Escucha la secuencia';
+            }
+
+            toggleStrict() {
+                this.strictMode = !this.strictMode;
+                document.getElementById('strict-btn').textContent = this.strictMode ? 'STRICT ON' : 'STRICT';
+            }
+
+            nextRound() {
+                this.playerSequence = [];
+                this.step++;
+                this.addToSequence();
+                this.playSequence();
+                document.getElementById('display').textContent = this.step;
+            }
+
+            addToSequence() {
+                this.sequence.push(Math.floor(Math.random() * 4));
+            }
+
+            playSequence() {
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i >= this.sequence.length) {
+                        clearInterval(interval);
+                        document.getElementById('message').textContent = 'Tu turno';
+                        return;
+                    }
+                    this.lightPanel(this.sequence[i]);
+                    i++;
+                }, 800);
+            }
+
+            lightPanel(colorIndex) {
+                const panelId = this.colors[colorIndex];
+                const panel = document.getElementById(panelId);
+                panel.classList.add('light');
+                this.sounds[colorIndex].play().catch(() => {}); // Ignora errores de audio
+                setTimeout(() => {
+                    panel.classList.remove('light');
+                }, 400);
+            }
+
+            playerTurn(panelId) {
+                if (!this.gameOn || this.sequence.length === 0) return;
+
+                let colorIndex;
+                for (let key in this.colors) {
+                    if (this.colors[key] === panelId) {
+                        colorIndex = parseInt(key);
+                        break;
+                    }
+                }
+
+                this.playerSequence.push(colorIndex);
+                this.lightPanel(colorIndex);
+
+                if (this.playerSequence[this.playerSequence.length - 1] !== this.sequence[this.playerSequence.length - 1]) {
+                    this.gameOver();
+                    return;
+                }
+
+                if (this.playerSequence.length === this.sequence.length) {
+                    if (this.step === 20) {
+                        this.win();
+                    } else {
+                        setTimeout(() => this.nextRound(), 1000);
+                    }
+                }
+            }
+
+            gameOver() {
+                this.gameOn = false;
+                document.getElementById('message').textContent = '¡Game Over! Presiona START';
+                document.getElementById('display').textContent = '--';
+                // Parpadea los paneles
+                const panels = document.querySelectorAll('.panel');
+                const blink = () => {
+                    panels.forEach(p => p.classList.toggle('light'));
+                    setTimeout(blink, 200);
+                    setTimeout(() => {
+                        panels.forEach(p => p.classList.remove('light'));
+                    }, 1000);
+                };
+                blink();
+            }
+
+            win() {
+                this.gameOn = false;
+                document.getElementById('message').textContent = '¡Ganaste! Presiona START';
+                document.getElementById('display').textContent = '**';
+                // Parpadea todos los paneles
+                const panels = document.querySelectorAll('.panel');
+                panels.forEach(p => p.classList.add('light'));
+                setTimeout(() => {
+                    panels.forEach(p => p.classList.remove('light'));
+                }, 1000);
+            }
+        }
+
+        new SimonGame();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

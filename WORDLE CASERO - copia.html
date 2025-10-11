@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Casero</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #grid { display: grid; grid-template-rows: repeat(6, 60px); grid-template-columns: repeat(5, 60px); gap: 5px; margin: 20px auto; justify-content: center; }
+        .cell { border: 2px solid #d3d6da; display: flex; align-items: center; justify-content: center; font-size: 2em; font-weight: bold; text-transform: uppercase; }
+        #keyboard { margin: 20px; }
+        .key { width: 40px; height: 50px; margin: 2px; background: #d3d6da; border: none; border-radius: 4px; text-transform: uppercase; cursor: pointer; }
+        .key-wide { width: 60px; }
+        .green { background: #6aaa64 !important; color: white; }
+        .yellow { background: #c9b458 !important; color: white; }
+        .gray { background: #787c7e !important; color: white; }
+        #message { margin: 10px; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <h1>Wordle Casero</h1>
+    <p>Adivina la palabra del día (5 letras, español).</p>
+    <div id="grid"></div>
+    <div id="message"></div>
+    <div id="keyboard"></div>
+
+    <script>
+        const validWords = ['ABABA','ABACA','ABACO','ABADA','ABADI','ABAJA','ABAJE','ABAJO','ABALA','ABALE','ABALO','ABANA','ABANE','ABANO','ABAÑA','ABAÑE','ABAÑO','ABASI','ABATA','ABATE','ABATI','ABATO','ABECE','ABEJA','ABETE','ABETO','ABIAR','ABIAS','ABINA','ABINE','ABINO','ABISO','ABITA','ABITE','ABITO','ABOBA','ABOBE','ABOBO','ABOCA','ABOCO','ABOFA','ABOFE','ABOFO','ABOGA','ABOGO','ABOLI','ABONA','ABONE','ABONO','ABOYA','ABOYE','ABOYO','ABOZO','ABRAN','ABRAS','ABREN','ABRES','ABRIA','ABRID','ABRIL','ABRIO','ABRIR','ABRIS','ABSIT','ABUBO','ABUCE','ABUJE','ABURA','ABURE','ABURO','ABUSA','ABUSE','ABUSO','ABUZA','ABUZO','ACABA','ACABE','ACABO','ACAMA','ACAME','ACAMO','ACANA','ACARA','ACARE','ACARO','ACASO','ACATA','ACATE','ACATO','ACEBO','ACECE','ACEDA','ACEDE','ACEDO','ACEMA','ACEÑA','ACEPA','ACEPE','ACEPO','ACERA','ACERE','ACERO','ACETA','ACETO','ACEZA','ACEZO','ACHIN','ACHIS','ACIAL','ACIAR','ACIDA','ACIDO','ACIJE','ACILO','ACIMO','ACION','ACLES','ACLLA','ACMES','ACNES','ACOCA','ACOCO','ACODA','ACODE','ACODO','ACOGE','ACOGI','ACOJA','ACOJO','ACOLA','ACOLE','ACOLO','ACOPA','ACOPE','ACOPO','ACORA','ACORE','ACORO','ACOSA','ACOSE','ACOSO','ACOTA','ACOTE','ACOTO','ACRES','ACROE','ACROY','ACTAS','ACTEA','ACTOR','ACTOS','ACTUA','ACTUE','ACTUO','ACUDA','ACUDE','ACUDI','ACUDO','ACUEA','ACUEO','ACULA','ACULE','ACULO','ACUNA','ACUNE','ACUNO','ACUÑA','ACUÑE','ACUÑO','ACURE','ACUSA','ACUSE','ACUSO','ACUTA','ACUTI','ACUTO','ACUYO','ADALA','ADAMA','ADAME','ADAMO','ADAZA','ADEMA','ADEME','ADEMO','ADIAD','ADIAN','ADIAR','ADIAS','ADIEN','ADIES','ADIOS','ADIVA','ADIVE','ADOBA','ADOBE','ADOBO','ADORA','ADORE','ADORO','ADOSA','ADOSE','ADOSO','ADRAD','ADRAL','ADRAN','ADRAR','ADRAS','ADREN','ADRES','ADUAR','ADUCE','ADUCI','ADUFE','ADUJA','ADUJE','ADUJO','ADULA','ADULE','ADULO','ADUNA','ADUNE','ADUNO','ADURA','ADURE','ADURI','ADURO','ADVEN','AEDAS','AEDOS','AEREA','AEREO','AETAS','AFACA','AFACE','AFAGA','AFAGO','AFAMA','AFAME','AFAMO','AFANA','AFANE','AFANO','AFARA','AFARE','AFATA','AFATE','AFATO','AFEAD','AFEAN','AFEAR','AFEAS','AFEEN','AFEES','AFIAR','AFICE','AFIJA','AFIJO','AFILA','AFILE','AFILO','AFINA','AFINE','AFINO','AFIZO','AFLUI','AFOCA','AFOCO','AFOFA','AFOFE','AFOFO','AFOGA','AFOGO','AFONA','AFONO','AFORA','AFORE','AFORO','AFOSA','AFOSE','AFOSO','AFTAS','AFUFA','AFUFE','AFUFO','AFUMA','AFUME','AFUMO','AGACE','AGAMI','AGANA','AGANE','AGANO','AGAPE','AGATA','AGAVE','AGIOS','AGITA','AGITE','AGITO','AGNUS','AGOLA','AGOLE','AGOLO','AGORA','AGORE','AGORO','AGOTA','AGOTE','AGOTO','AGRAS','AGRAZ','AGRES','AGRIA','AGRIE','AGRIO','AGROR','AGROS','AGUAD','AGUAI','AGUAN','AGUAR','AGUAS','AGUAY','AGUCE','AGUDA','AGUDO','AGUEN','AGUES','AGUIN','AGUIO','AGUJA','AGUTI','AGUZA','AGUZO','AHAJA','AHAJE','AHAJO','AHIJA','AHIJE','AHIJO','AHILA','AHILE','AHILO','AHINA','AHITA','AHITE','AHITO','AHOGA','AHOGO','AHORA','AHOYA','AHOYE','AHOYO','AHUMA','AHUME','AHUMO','AHUSA','AHUSE','AHUSO','AILLO','AILLU','AINAS','AIRAD','AIRAN','AIRAR','AIRAS','AIREA','AIREO','AIRES','AIRON','AISAS','AISLA','AISLE','AISLO','AITES','AJABA','AJADA','AJADO','AJAIS','AJAJA','AJARA','AJARE','AJASE','AJEAD','AJEAN','AJEAR','AJEAS','AJEBE','AJEEN','AJEES','AJEIS','AJENA','AJENO','AJEOS','AJERA','AJERO','AJETE','AJICE','AJIES','AJIPA','AJIZA','AJIZO','AJOBO','AJORA','AJORE','AJORO','AJOTA','AJOTE','AJOTO','AJUAR','AJUMA','AJUME','AJUMO','AJUNA','AJUNO','ALABA','ALABE','ALABO','ALACO','ALADA','ALADO','ALAFA','ALAGA','ALAGO','ALAJU','ALALA','ALALO','ALAMA','ALAMO','ALANA','ALANO','ALAUI','ALAZO','ALBAR','ALBAS','ALBEA','ALBEE','ALBEO','ALBIN','ALBOR','ALBOS','ALBUM','ALBUR','ALCAS','ALCEA','ALCEN','ALCES','ALCOR','ALDEA','ALEAD','ALEAN','ALEAR','ALEAS','ALECE','ALEDA','ALEEN','ALEES','ALEFS','ALEGA','ALEGO','ALEJA','ALEJE','ALEJO','ALELA','ALELE','ALELI','ALELO','ALEMA','ALERO','ALETA','ALETO','ALEVE','ALEYA','ALEZO','ALFAD','ALFAN','ALFAR','ALFAS','ALFEN','ALFES','ALFIL','ALFIZ','ALFOZ','ALGAR','ALGAS','ALGOL','ALGOS','ALGUN','ALHOZ','ALIAD','ALIAN','ALIAR','ALIAS','ALICA','ALIEN','ALIER','ALIES'];
+
+        const validSet = new Set(validWords);
+        const answer = 'ACAME';  // Palabra del día para 08/10/2025
+
+        let row = 0;
+        let col = 0;
+        let grid = [];
+
+        function initGrid() {
+            const gridEl = document.getElementById('grid');
+            for (let i = 0; i < 6; i++) {
+                grid[i] = [];
+                for (let j = 0; j < 5; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    gridEl.appendChild(cell);
+                    grid[i][j] = cell;
+                }
+            }
+        }
+
+        function initKeyboard() {
+            const keyboardLayout = [
+                ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+                ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ñ'],
+                ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+            ];
+            const kbEl = document.getElementById('keyboard');
+            keyboardLayout.forEach(rowKeys => {
+                const rowEl = document.createElement('div');
+                rowKeys.forEach(key => {
+                    const btn = document.createElement('button');
+                    btn.textContent = key;
+                    btn.className = 'key';
+                    btn.onclick = () => addLetter(key);
+                    rowEl.appendChild(btn);
+                });
+                kbEl.appendChild(rowEl);
+            });
+            // Enter y Borrar
+            const enterBtn = document.createElement('button');
+            enterBtn.textContent = 'ENTER';
+            enterBtn.className = 'key key-wide';
+            enterBtn.onclick = checkWord;
+            kbEl.appendChild(enterBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = '⌫';
+            deleteBtn.className = 'key key-wide';
+            deleteBtn.onclick = deleteLetter;
+            kbEl.appendChild(deleteBtn);
+        }
+
+        function addLetter(letter) {
+            if (col < 5 && row < 6) {
+                grid[row][col].textContent = letter;
+                col++;
+            }
+        }
+
+        function deleteLetter() {
+            if (col > 0) {
+                col--;
+                grid[row][col].textContent = '';
+            }
+        }
+
+        function checkWord() {
+            if (col !== 5) return;
+
+            const guess = [];
+            for (let j = 0; j < 5; j++) {
+                guess.push(grid[row][j].textContent);
+            }
+            const guessStr = guess.join('').toUpperCase();
+
+            if (!validSet.has(guessStr)) {
+                document.getElementById('message').textContent = '¡Palabra no válida!';
+                setTimeout(() => { document.getElementById('message').textContent = ''; }, 2000);
+                return;
+            }
+
+            const answerArr = answer.split('');
+            const used = new Set();
+
+            // Verde primero
+            for (let j = 0; j < 5; j++) {
+                if (guess[j] === answerArr[j]) {
+                    grid[row][j].classList.add('green');
+                    used.add(guess[j]);
+                }
+            }
+
+            // Amarillo
+            for (let j = 0; j < 5; j++) {
+                if (!grid[row][j].classList.contains('green') && answerArr.includes(guess[j])) {
+                    if (!used.has(guess[j])) {
+                        grid[row][j].classList.add('yellow');
+                        used.add(guess[j]);
+                    } else {
+                        grid[row][j].classList.add('gray');
+                    }
+                } else if (!grid[row][j].classList.contains('green')) {
+                    grid[row][j].classList.add('gray');
+                }
+            }
+
+            if (guessStr === answer) {
+                document.getElementById('message').textContent = '¡Ganaste! 🎉';
+                return;
+            }
+
+            row++;
+            col = 0;
+            if (row === 6) {
+                document.getElementById('message').textContent = `¡Perdiste! La palabra era ${answer}.`;
+            }
+        }
+
+        initGrid();
+        initKeyboard();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

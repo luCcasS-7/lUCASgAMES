@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Redes Sociales - Influencer Life</title>
+    <style>
+        /* Estilos super realistas inspirados en Instagram/TikTok/Twitter */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #fafafa;
+            color: #262626;
+            line-height: 1.5;
+        }
+        .app {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
+            color: white;
+            padding: 10px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+        .nav {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            background: white;
+            border-top: 1px solid #dbdbdb;
+        }
+        .nav button {
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            color: #262626;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: background 0.2s;
+        }
+        .nav button.active {
+            background: #0095f6;
+            color: white;
+        }
+        .nav button:hover {
+            background: #efefef;
+        }
+        .section {
+            display: none;
+            padding: 20px;
+        }
+        .section.active {
+            display: block;
+        }
+        .profile {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .profile img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            background: #dbdbdb;
+            object-fit: cover;
+        }
+        .customize-form {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        .customize-form input, .customize-form textarea {
+            width: 100%;
+            border: 1px solid #dbdbdb;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        .customize-form button {
+            background: #0095f6;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat strong {
+            display: block;
+            font-size: 20px;
+        }
+        .followers-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .follower {
+            font-size: 12px;
+            color: #8e8e8e;
+            margin-bottom: 5px;
+        }
+        .post-form {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        .post-form input[type="text"] {
+            border: 1px solid #dbdbdb;
+            padding: 10px;
+            border-radius: 5px;
+            outline: none;
+            margin-bottom: 10px;
+        }
+        .post-form .image-input {
+            margin-bottom: 10px;
+        }
+        .post-form .image-input input[type="file"] {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #dbdbdb;
+            border-radius: 5px;
+        }
+        .post-form button {
+            background: #0095f6;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .feed {
+            margin-bottom: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .post {
+            background: white;
+            border: 1px solid #dbdbdb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            animation: fadeIn 0.5s;
+        }
+        .post.new {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .post-image {
+            width: 100%;
+            height: 300px;
+            border-radius: 10px;
+            margin: 10px 0;
+            object-fit: cover;
+            background-size: cover;
+            background-position: center;
+        }
+        .post-image.placeholder {
+            background: #dbdbdb;
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .post-header img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background: #dbdbdb;
+            object-fit: cover;
+        }
+        .post-header strong {
+            font-size: 14px;
+        }
+        .post-header .time {
+            font-size: 12px;
+            color: #8e8e8e;
+            margin-left: auto;
+        }
+        .post-text {
+            margin-bottom: 10px;
+        }
+        .post-actions {
+            display: flex;
+            justify-content: space-between;
+            font-size: 24px;
+            color: #262626;
+        }
+        .post-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .post-actions button:hover {
+            color: #0095f6;
+        }
+        .post-actions .dislike {
+            color: #ed4956;
+        }
+        .post-actions .dislike:hover {
+            color: #c13584;
+        }
+        .likes {
+            font-size: 14px;
+            margin-top: 5px;
+            color: #8e8e8e;
+        }
+        .dislikes {
+            font-size: 14px;
+            margin-top: 2px;
+            color: #ed4956;
+        }
+        .comments {
+            margin-top: 10px;
+            border-top: 1px solid #efefef;
+            padding-top: 10px;
+        }
+        .comment {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .comment img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: #dbdbdb;
+            flex-shrink: 0;
+            object-fit: cover;
+        }
+        .comment-text {
+            flex: 1;
+        }
+        .comment-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+        .comment-header strong {
+            margin-right: 5px;
+        }
+        .comment-time {
+            color: #8e8e8e;
+            font-size: 12px;
+        }
+        .inbox {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            background: white;
+            border: 1px solid #dbdbdb;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            animation: fadeIn 0.5s;
+        }
+        .message.new {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .message-header img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            object-fit: cover;
+        }
+        .message-header strong {
+            font-size: 14px;
+        }
+        .message-time {
+            font-size: 12px;
+            color: #8e8e8e;
+        }
+        .message-text {
+            margin-bottom: 10px;
+        }
+        .reply-form {
+            display: flex;
+        }
+        .reply-form input {
+            flex: 1;
+            border: 1px solid #dbdbdb;
+            padding: 8px;
+            border-radius: 20px;
+            outline: none;
+        }
+        .reply-form button {
+            background: #0095f6;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 20px;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+        .notification {
+            background: #fef7f0;
+            border: 1px solid #ffdab9;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .gain-followers {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border-radius: 10px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .gain-followers:hover {
+            transform: scale(1.05);
+        }
+        .followers-counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #0095f6;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="followers-counter" id="followersCounter">
+        Seguidores: <span id="liveSeguidores">0</span> ↑
+    </div>
+    <div class="app">
+        <div class="header">
+            <h1>Influencer Life Simulator</h1>
+        </div>
+        <div class="nav">
+            <button id="homeBtn" class="active">Inicio</button>
+            <button id="inboxBtn">Mensajes</button>
+            <button id="profileBtn">Perfil</button>
+        </div>
+
+        <!-- Sección Inicio (Feed) -->
+        <div id="homeSection" class="section active">
+            <div class="post-form">
+                <input type="text" id="postInput" placeholder="¿Qué estás pensando? #InfluencerLife">
+                <div class="image-input">
+                    <input type="file" id="postImageInput" accept="image/*">
+                    <small>Sube una imagen opcional (o usa auto-generada)</small>
+                </div>
+                <button onclick="postear()">Publicar</button>
+            </div>
+            <div class="feed" id="feed">
+                <!-- Posts se generan dinámicamente -->
+            </div>
+            <div class="gain-followers" onclick="ganarSeguidores()">
+                🎉 ¡Interactúa para ganar seguidores! Clic aquí para simular engagement.
+            </div>
+        </div>
+
+        <!-- Sección Mensajes -->
+        <div id="inboxSection" class="section">
+            <h2>Mensajes (Actualizándose automáticamente...)</h2>
+            <div class="inbox" id="inbox">
+                <!-- Mensajes se generan dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Sección Perfil -->
+        <div id="profileSection" class="section">
+            <div class="profile">
+                <img id="profilePic" src="https://via.placeholder.com/100?text=Tú" alt="Tu foto">
+                <h2 id="username">@tuusuario_influencer</h2>
+                <p id="bio">¡Juega como el influencer del año! Responde mensajes y publica para crecer.</p>
+                <div class="customize-form">
+                    <input type="file" id="picInput" accept="image/*" onchange="cambiarFoto()">
+                    <input type="text" id="userInput" placeholder="Nuevo username (ej: @miinfluencer)" onblur="cambiarUsername()">
+                    <textarea id="bioInput" placeholder="Nueva bio..." rows="3" onblur="cambiarBio()"></textarea>
+                    <button onclick="guardarPersonalizacion()">Guardar Cambios</button>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <strong id="seguidores">0</strong>
+                        Seguidores
+                    </div>
+                    <div class="stat">
+                        <strong id="siguiendo">250</strong>
+                        Siguiendo
+                    </div>
+                    <div class="stat">
+                        <strong id="posts">5</strong>
+                        Publicaciones
+                    </div>
+                </div>
+                <h3>Seguidores Recientes</h3>
+                <div class="followers-list" id="followersList">
+                    <!-- Lista de seguidores random se genera dinámicamente -->
+                </div>
+            </div>
+            <div id="notifications">
+                <!-- Notificaciones de ganancias -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let seguidores = 0; // Empezamos en 0 como pediste
+        let postsCount = 5;
+        let feed = [];
+        let messages = [];
+        let recentFollowers = [];
+        let username = '@tuusuario_influencer';
+        let bio = '¡Juega como el influencer del año! Responde mensajes y publica para crecer.';
+        let profilePic = 'https://via.placeholder.com/100?text=Tú';
+
+        // Inventar usuarios desde el inicio: 20 usuarios únicos con avatares personalizados
+        const firstNames = ['Ana', 'Luis', 'Maria', 'Carlos', 'Sofia', 'Diego', 'Laura', 'Juan', 'Elena', 'Pedro', 'Carmen', 'Miguel', 'Isabel', 'Jose', 'Paula', 'David', 'Sara', 'Raul', 'Lucia', 'Fernando'];
+        const lastNames = ['Gomez', 'Lopez', 'Martinez', 'Rodriguez', 'Hernandez', 'Perez', 'Sanchez', 'Garcia', 'Torres', 'Ramirez', 'Vazquez', 'Morales', 'Reyes', 'Cruz', 'Ortiz', 'Mendoza', 'Castillo', 'Navarro', 'Silva', 'Guerrero'];
+        const colors = ['FF6B6B', '4ECDC4', '45B7D1', '96CEB4', 'FECA57', 'FF9FF3', '54A0FF', '5F27CD', '00D2D3', 'FF6348', '7BED9F', 'FF8C42', '6C5CE7', 'A29BFE', 'FD79A8', '00B894', 'E17055', '00BFFF', 'FDCB6E', 'E84393'];
+        const users = [];
+        for (let i = 0; i < 20; i++) {
+            const fn = firstNames[i % firstNames.length];
+            const ln = lastNames[i % lastNames.length];
+            const u = `@${fn.toLowerCase()}${ln.toLowerCase()}${i + 1}`;
+            const color = colors[i % colors.length];
+            const initials = fn[0] + ln[0];
+            users.push({
+                username: u,
+                avatar: `https://via.placeholder.com/40/${color}?text=${initials}`
+            });
+        }
+
+        // Colores y temas para imágenes automáticas
+        const imageColors = ['linear-gradient(45deg, #FF6B6B, #4ECDC4)', 'linear-gradient(45deg, #45B7D1, #96CEB4)', 'linear-gradient(45deg, #FECA57, #FF9FF3)', 'linear-gradient(45deg, #54A0FF, #5F27CD)', 'linear-gradient(45deg, #00D2D3, #FF6348)'];
+        const imageTexts = ['🌟', '💪', '👗', '☕', '🏖️', '📖', '😂', '✨', '🚀', '❤️'];
+
+        // Plantillas para comentarios
+        const commentTemplates = [
+            '¡Genial! Me encanta esto 🔥',
+            'Totalmente de acuerdo, sigue así 👏',
+            '¿Cómo lo haces? Inspirador 💯',
+            'Jajaja, lo mejor del día 😂',
+            'Necesito más contenido como este 🙌',
+            '¡Wow, qué tip! Gracias 😍',
+            'Esto es oro puro, gracias por compartir ✨',
+            'Me motivaste hoy, ¡vamos! 💪',
+            '¿Colab? Suena épico 🔥',
+            'Fan total desde ya ❤️',
+            '¡Qué estilo! Enseña más 👗',
+            'Recomendado 100% 📖',
+            'Risas garantizadas con esto 😆',
+            'Inspiración diaria, gracias 🙏',
+            '¡Siguiente nivel! 🚀'
+        ];
+
+        // Plantillas para textos de mensajes (para generar únicos)
+        const messageTextTemplates = [
+            '¡Amo tu último post! ¿Cómo mantienes esa motivación? 😍',
+            'Hola! Interesados en una colaboración? Envía DM para details.',
+            'Tu contenido es fake, no me sigas.',
+            'Inspiración total! Siguiéndote desde el día 1. 🙌',
+            'Ey, hagamos un shoutout mutuo? 🔥',
+            '¡Qué outfit increíble! ¿Dónde lo compraste? 👗',
+            'Gracias por el tip de fitness, lo probé y funciona 💪',
+            'Me encanta tu vibe, sigue así ✨',
+            '¿Colaboración con mi brand? Te mando propuesta.',
+            'Fan #1 aquí, no pares de postear ❤️',
+            'Jajaja, ese meme me mató 😂',
+            'Necesito consejos para mi canal, ¿ayudas?',
+            '¡Felicidades por los 1k followers! 🎉',
+            'Tu historia me cambió la perspectiva, gracias 🙏',
+            '¡Vamos a un live juntos! ¿Cuándo?',
+            'Probé tu rec de café, 10/10 ☕',
+            'Eres mi inspo diaria, no lo olvides 💫',
+            'DM para promo code exclusivo? 😏',
+            '¡Qué viaje épico! Tips para el próximo? 🏖️',
+            'Sigue brillando, reina 👑'
+        ];
+
+        // Plantillas de posts para USUARIOS RANDOM (como en Twitter)
+        const otherPostTemplates = [
+            "¡Acabo de terminar mi workout! ¿Quién más? 💪 #Fitness",
+            "Este café es vida ☕ #MorningVibes",
+            "Nuevo libro que me voló la cabeza 📖 Recomendado",
+            "Outfit del día: ready para conquistar 🌟 #Fashion",
+            "Riendo con este meme 😂 RT si te pasa",
+            "Viajando a la playa, ¿tips? 🏖️ #Travel",
+            "Mi receta favorita de smoothie 🥤 Fácil y healthy",
+            "¡Gané el challenge! ¿Te animas? 🔥",
+            "Pensando en el futuro... ¿y tú? 🤔",
+            "Colaborando con @brandcool, stay tuned! ✨",
+            "Selfie del lunes 💁‍♀️ #MondayMotivation",
+            "Podcast nuevo out! Escúchalo aquí 🎙️",
+            "Gracias por los likes en el último post ❤️",
+            "Debate: ¿café o té? Vota abajo ☕🍵",
+            "Inspirado por la naturaleza 🌳 #NatureLover",
+            "Nuevo gadget que probé: 10/10 📱",
+            "Historia real que me pasó hoy... 😅",
+            "Shoutout a mis followers! Los amo 🙌",
+            "Clase de baile virtual, únete! 💃",
+            "Reflexión del día: sé tú mismo ✨"
+        ];
+
+        // Plantillas de posts para el usuario
+        const userPostTemplates = [
+            "¡Nuevo challenge de fitness! ¿Quién se anima? 💪 #GymLife #Influencer",
+            "Outfit del día: Casual chic para conquistar el mundo. 👗✨ #Fashion",
+            "Gracias por el support, familia! Vamos por más. ❤️ #Grateful",
+            "Probando el nuevo café orgánico. ¿Recomendado? ☕ #Foodie",
+            "Viaje soñado a la playa. ¿A dónde irías tú? 🏖️ #Travel"
+        ];
+
+        // Funciones de random usando usuarios inventados
+        function getRandomUser() {
+            return users[Math.floor(Math.random() * users.length)];
+        }
+
+        function generarImagenRandom() {
+            const color = imageColors[Math.floor(Math.random() * imageColors.length)];
+            const text = imageTexts[Math.floor(Math.random() * imageTexts.length)];
+            return `background: ${color}; background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".7em" font-size="60" fill="white">${text}</text></svg>');`;
+        }
+
+        function generarComentarioRandom() {
+            const userObj = getRandomUser();
+            const comment = commentTemplates[Math.floor(Math.random() * commentTemplates.length)];
+            const time = ['1m', '2m', '5m', '1h', '2h'][Math.floor(Math.random() * 5)];
+            return { user: userObj.username, avatar: userObj.avatar, comment, time };
+        }
+
+        // Generar post de usuario random (como en Twitter) con imagen auto
+        function generarPostRandom() {
+            const poster = getRandomUser();
+            const text = otherPostTemplates[Math.floor(Math.random() * otherPostTemplates.length)];
+            const time = ['1 min', '5 min', '10 min', '30 min', '1 hora', '2 horas'][Math.floor(Math.random() * 6)];
+            const likes = Math.floor(Math.random() * 200) + 20;
+            const dislikes = Math.floor(Math.random() * 50);
+            const comments = Math.floor(Math.random() * 15) + 3;
+            const imageStyle = generarImagenRandom();
+            const post = {
+                id: Date.now() + Math.random(),
+                isUser: false,
+                poster: poster.username,
+                avatar: poster.avatar,
+                text: text,
+                image: imageStyle,
+                imageSrc: null, // No src para random
+                likes: likes,
+                dislikes: dislikes,
+                comments: comments,
+                time: time,
+                commentsList: Array.from({length: comments}, () => generarComentarioRandom())
+            };
+            feed.unshift(post); // Agregar al inicio como nuevo tweet
+            // Auto-ganar seguidores por post random (simula engagement)
+            ganarSeguidores(Math.floor(Math.random() * 5) + 1);
+            mostrarNotificacion('¡Nuevo post en tu feed! +Seguidores por visibilidad. 🐦');
+            if (document.getElementById('homeSection').classList.contains('active')) {
+                cargarFeed();
+            }
+        }
+
+        // Funciones de navegación
+        document.getElementById('homeBtn').addEventListener('click', () => switchSection('home'));
+        document.getElementById('inboxBtn').addEventListener('click', () => switchSection('inbox'));
+        document.getElementById('profileBtn').addEventListener('click', () => switchSection('profile'));
+
+        function switchSection(section) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(section + 'Section').classList.add('active');
+            document.querySelector(`#${section}Btn`).classList.add('active');
+            if (section === 'home') cargarFeed();
+            if (section === 'inbox') cargarMensajes();
+            if (section === 'profile') actualizarPerfil();
+        }
+
+        // Personalización
+        function cambiarFoto() {
+            const file = document.getElementById('picInput').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    profilePic = e.target.result;
+                    document.getElementById('profilePic').src = profilePic;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function cambiarUsername() {
+            const newUser = document.getElementById('userInput').value.trim();
+            if (newUser) username = newUser.startsWith('@') ? newUser : '@' + newUser;
+            document.getElementById('username').textContent = username;
+            document.getElementById('userInput').value = '';
+        }
+
+        function cambiarBio() {
+            const newBio = document.getElementById('bioInput').value.trim();
+            if (newBio) bio = newBio;
+            document.getElementById('bio').textContent = bio;
+            document.getElementById('bioInput').value = '';
+        }
+
+        function guardarPersonalizacion() {
+            localStorage.setItem('profilePic', profilePic);
+            localStorage.setItem('username', username);
+            localStorage.setItem('bio', bio);
+            mostrarNotificacion('¡Personalización guardada! 😎');
+        }
+
+        // Cargar personalización guardada
+        function cargarPersonalizacion() {
+            const savedPic = localStorage.getItem('profilePic');
+            const savedUser = localStorage.getItem('username');
+            const savedBio = localStorage.getItem('bio');
+            if (savedPic) {
+                profilePic = savedPic;
+                document.getElementById('profilePic').src = profilePic;
+            }
+            if (savedUser) {
+                username = savedUser;
+                document.getElementById('username').textContent = username;
+            }
+            if (savedBio) {
+                bio = savedBio;
+                document.getElementById('bio').textContent = bio;
+            }
+        }
+
+        // Publicar post del usuario con imagen opcional
+        function postear() {
+            const input = document.getElementById('postInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            let imageSrc = null;
+            let imageStyle = null;
+            const fileInput = document.getElementById('postImageInput');
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imageSrc = e.target.result;
+                    // Procesar post después de leer imagen
+                    procesarPost(imageSrc);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                // Sin imagen: usar auto-generada
+                imageStyle = generarImagenRandom();
+                procesarPost(null, imageStyle);
+            }
+
+            function procesarPost(imgSrc, imgStyle) {
+                const post = {
+                    id: Date.now(),
+                    isUser: true,
+                    poster: username,
+                    avatar: profilePic,
+                    text: text,
+                    imageSrc: imgSrc,
+                    imageStyle: imgStyle,
+                    likes: Math.floor(Math.random() * 100) + 10,
+                    dislikes: 0,
+                    comments: 0,
+                    time: 'Ahora',
+                    commentsList: []
+                };
+                // Generar 2-3 comentarios automáticos únicos
+                const numComments = Math.floor(Math.random() * 2) + 2;
+                for (let i = 0; i < numComments; i++) {
+                    const comment = generarComentarioRandom();
+                    post.commentsList.push(comment);
+                    post.comments++;
+                }
+                feed.unshift(post);
+                input.value = '';
+                fileInput.value = ''; // Reset file input
+                postsCount++;
+                actualizarPerfil();
+                mostrarNotificacion(`¡Tu post publicado ${imgSrc ? 'con tu imagen' : 'con imagen auto'}! +50 seguidores por engagement.`);
+                ganarSeguidores(50);
+                cargarFeed();
+            }
+        }
+
+        // Cargar feed con posts mixtos (usuario + random) y likes/dislikes
+        function cargarFeed() {
+            const container = document.getElementById('feed');
+            container.innerHTML = '';
+            feed.forEach(post => {
+                const div = document.createElement('div');
+                div.className = `post ${post.isUser ? '' : 'new'}`;
+                let commentsHtml = '';
+                post.commentsList.forEach(comment => {
+                    commentsHtml += `
+                        <div class="comment">
+                            <img src="${comment.avatar}" alt="${comment.user}">
+                            <div class="comment-text">
+                                <div class="comment-header">
+                                    <strong>${comment.user}</strong>
+                                    <span class="comment-time">${comment.time}</span>
+                                </div>
+                                <p>${comment.comment}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                let imageHtml = '';
+                if (post.imageSrc) {
+                    imageHtml = `<img class="post-image" src="${post.imageSrc}" alt="Imagen del post">`;
+                } else if (post.imageStyle) {
+                    imageHtml = `<div class="post-image placeholder" style="${post.imageStyle}"></div>`;
+                }
+                div.innerHTML = `
+                    <div class="post-header">
+                        <img src="${post.avatar}" alt="${post.poster}">
+                        <strong>${post.poster}</strong>
+                        <span class="time">${post.time}</span>
+                    </div>
+                    <div class="post-text">${post.text}</div>
+                    ${imageHtml}
+                    <div class="post-actions">
+                        <button onclick="likear(${post.id})">❤️</button>
+                        <button class="dislike" onclick="dislikear(${post.id})">💔</button>
+                        <button>💬</button>
+                        <button>📤</button>
+                    </div>
+                    <div class="likes">${post.likes} likes</div>
+                    <div class="dislikes">${post.dislikes} dislikes</div>
+                    <div class="comments">
+                        ${commentsHtml}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            // Agregar posts de muestra si no hay suficientes
+            if (feed.length < 5) {
+                // Mezclar: 2 del usuario, 3 random con imágenes
+                userPostTemplates.slice(0, 2).forEach(t => {
+                    const imageStyle = generarImagenRandom();
+                    const samplePost = { 
+                        id: Math.random(), 
+                        isUser: true,
+                        poster: username,
+                        avatar: profilePic,
+                        text: t, 
+                        imageStyle: imageStyle,
+                        likes: 50, 
+                        dislikes: 5,
+                        comments: 3, 
+                        time: '2h',
+                        commentsList: Array.from({length: 3}, () => generarComentarioRandom())
+                    };
+                    feed.push(samplePost);
+                });
+                for (let i = 0; i < 3; i++) {
+                    generarPostRandom();
+                }
+                cargarFeed();
+            }
+        }
+
+        function likear(id) {
+            const post = feed.find(p => p.id === id);
+            if (post) {
+                post.likes += Math.floor(Math.random() * 10) + 5; // Simula más likes
+                mostrarNotificacion('¡Like! +5-15 seguidores por interacción positiva.');
+                ganarSeguidores(Math.floor(Math.random() * 10) + 5);
+            }
+            cargarFeed();
+        }
+
+        function dislikear(id) {
+            const post = feed.find(p => p.id === id);
+            if (post) {
+                post.dislikes += Math.floor(Math.random() * 3) + 1; // Simula dislikes
+                mostrarNotificacion('¡Dislike! +1-3 seguidores (incluso negativos ayudan a viralizar).');
+                ganarSeguidores(Math.floor(Math.random() * 3) + 1); // Aún gana, pero menos
+            }
+            cargarFeed();
+        }
+
+        // Generar mensaje único y aleatorio
+        function generarMensaje() {
+            const sender = getRandomUser();
+            const text = messageTextTemplates[Math.floor(Math.random() * messageTextTemplates.length)];
+            const times = ['1 min', '5 min', '1 hora', '3 horas', '1 día', '2 días'];
+            const time = times[Math.floor(Math.random() * times.length)];
+            const msg = {
+                id: Date.now() + Math.random(), // Único
+                from: sender.username,
+                avatar: sender.avatar,
+                text: text,
+                time: time,
+                replied: false
+            };
+            // Verificar si ya existe (improbable con ID único)
+            if (!messages.some(m => m.text === msg.text && m.from === msg.from)) {
+                messages.unshift(msg);
+                mostrarNotificacion('¡Nuevo mensaje entrante! Revisa tu inbox. 📩');
+                if (document.getElementById('inboxSection').classList.contains('active')) {
+                    cargarMensajes();
+                }
+            }
+        }
+
+        function cargarMensajes() {
+            const container = document.getElementById('inbox');
+            container.innerHTML = '';
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message ${!msg.replied ? 'new' : ''}`;
+                div.innerHTML = `
+                    <div class="message-header">
+                        <img src="${msg.avatar}" alt="${msg.from}">
+                        <strong>${msg.from}</strong>
+                        <span class="message-time">${msg.time}</span>
+                    </div>
+                    <div class="message-text">${msg.text}</div>
+                    ${!msg.replied ? `
+                        <div class="reply-form">
+                            <input type="text" placeholder="Responde aquí..." onkeypress="if(event.key==='Enter') responder(${msg.id})">
+                            <button onclick="responder(${msg.id})">Enviar</button>
+                        </div>
+                    ` : '<p style="color:#8e8e8e; font-size:12px;">Respondido ✓</p>'}
+                `;
+                container.appendChild(div);
+            });
+            if (messages.length === 0) {
+                generarMensaje();
+                cargarMensajes();
+            }
+        }
+
+        function responder(id) {
+            const msg = messages.find(m => m.id === id);
+            if (msg && !msg.replied) {
+                msg.replied = true;
+                mostrarNotificacion('¡Mensaje respondido! +20 seguidores por interacción.');
+                ganarSeguidores(20);
+                cargarMensajes();
+            }
+        }
+
+        // Ganar seguidores con usuarios random no-stop
+        function ganarSeguidores(cantidad = Math.floor(Math.random() * 50) + 10) {
+            for (let i = 0; i < cantidad; i++) {
+                const newFollower = getRandomUser().username;
+                if (!recentFollowers.includes(newFollower)) { // Evitar duplicados recientes
+                    recentFollowers.unshift(newFollower);
+                }
+                if (recentFollowers.length > 20) recentFollowers.pop(); // Mantener solo 20 recientes
+            }
+            seguidores += cantidad;
+            actualizarLiveCounter(); // Actualizar contador en vivo
+            actualizarPerfil();
+            mostrarNotificacion(`¡+${cantidad} seguidores nuevos! Total: ${seguidores.toLocaleString()}`);
+            cargarSeguidoresRecientes();
+        }
+
+        function cargarSeguidoresRecientes() {
+            const container = document.getElementById('followersList');
+            container.innerHTML = recentFollowers.map(f => `<div class="follower">Nuevo seguidor: ${f}</div>`).join('');
+        }
+
+        // Actualizar contador en vivo
+        function actualizarLiveCounter() {
+            document.getElementById('liveSeguidores').textContent = seguidores.toLocaleString();
+        }
+
+        // Auto-seguidores cada 5 segundos ahora (más rápido para ver subir automáticamente)
+        setInterval(() => {
+            if (Math.random() > 0.2) { // 80% chance cada 5s para subir constante
+                const autoGain = Math.floor(Math.random() * 8) + 2; // 2-10 por vez
+                ganarSeguidores(autoGain);
+            }
+        }, 5000);
+
+        // Auto-mensajes cada 20 segundos, únicos y automáticos
+        setInterval(generarMensaje, 20000);
+
+        // Auto-posts random cada 30 segundos (como Twitter timeline)
+        setInterval(generarPostRandom, 30000);
+
+        // Actualizar perfil
+        function actualizarPerfil() {
+            document.getElementById('seguidores').textContent = seguidores.toLocaleString();
+            document.getElementById('posts').textContent = postsCount;
+            document.getElementById('username').textContent = username;
+            document.getElementById('bio').textContent = bio;
+            document.getElementById('profilePic').src = profilePic;
+            cargarSeguidoresRecientes();
+        }
+
+        // Mostrar notificación
+        function mostrarNotificacion(text) {
+            const container = document.getElementById('notifications');
+            const notif = document.createElement('div');
+            notif.className = 'notification';
+            notif.innerHTML = `<strong>🎊 Notificación:</strong> ${text}`;
+            container.appendChild(notif);
+            setTimeout(() => notif.remove(), 5000);
+        }
+
+        // Inicializar
+        cargarPersonalizacion();
+        // Generar feed inicial con posts mixtos
+        for (let i = 0; i < 3; i++) {
+            generarPostRandom();
+        }
+        // Generar 3 mensajes iniciales únicos
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => generarMensaje(), i * 1000);
+        }
+        actualizarPerfil();
+        actualizarLiveCounter();
+        // Inicial random followers para boost
+        ganarSeguidores(8);
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

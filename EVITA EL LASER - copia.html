@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evita el Láser</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid #fff;
+            background-color: #111;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="gameOver">
+        <h1>¡Game Over!</h1>
+        <p>Puntuación: <span id="score">0</span></p>
+        <p>Vidas restantes: <span id="lives">0</span></p>
+        <button onclick="restartGame()">Reiniciar</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverDiv = document.getElementById('gameOver');
+        const scoreElement = document.getElementById('score');
+        const livesElement = document.getElementById('lives');
+
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            radius: 15,
+            speed: 5
+        };
+
+        let lasers = [];
+        let score = 0;
+        let lives = 3;
+        let gameRunning = true;
+        let baseSpawnRate = 0.02;
+        let currentSpawnRate = baseSpawnRate;
+        let difficultyTimer = 0;
+        let homingThreshold = 50; // A partir de esta puntuación, algunos láseres siguen al jugador
+
+        // Posición del ratón
+        let mouseX = player.x;
+        let mouseY = player.y;
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        // Generar láser aleatorio
+        function createLaser() {
+            const side = Math.floor(Math.random() * 4); // 0: top, 1: bottom, 2: left, 3: right
+            const isHoming = score >= homingThreshold && Math.random() < 0.3; // 30% chance de ser homing después del umbral
+            let laser = {
+                x: side === 2 ? 0 : (side === 3 ? canvas.width : Math.random() * (canvas.width - 20) + 10),
+                y: side === 0 ? 0 : (side === 1 ? canvas.height : Math.random() * (canvas.height - 20) + 10),
+                width: side === 2 || side === 3 ? 10 : 20,
+                height: side === 0 || side === 1 ? 10 : 20,
+                speed: 2 + Math.random() * (2 + score / 20), // Velocidad aumenta gradualmente con score
+                velocityX: 0,
+                velocityY: 0,
+                isHoming: isHoming,
+                homingStrength: 0.05 // Fuerza de seguimiento para homing
+            };
+
+            // Inicializar velocidades basadas en lado
+            if (side === 0) { laser.velocityY = laser.speed; } // Top to bottom
+            else if (side === 1) { laser.velocityY = -laser.speed; } // Bottom to top
+            else if (side === 2) { laser.velocityX = laser.speed; } // Left to right
+            else if (side === 3) { laser.velocityX = -laser.speed; } // Right to left
+
+            lasers.push(laser);
+        }
+
+        // Actualizar posición del jugador
+        function updatePlayer() {
+            player.x += (mouseX - player.x) * 0.1; // Suavizado
+            player.y += (mouseY - player.y) * 0.1;
+            // Limitar al canvas
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+        }
+
+        // Actualizar láseres
+        function updateLasers() {
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const laser = lasers[i];
+
+                if (laser.isHoming) {
+                    // Calcular dirección hacia el jugador
+                    const dx = player.x - laser.x;
+                    const dy = player.y - laser.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 0) {
+                        laser.velocityX += (dx / dist) * laser.homingStrength * laser.speed;
+                        laser.velocityY += (dy / dist) * laser.homingStrength * laser.speed;
+                    }
+                    // Normalizar velocidad para mantener la magnitud
+                    const speed = Math.sqrt(laser.velocityX * laser.velocityX + laser.velocityY * laser.velocityY);
+                    if (speed > 0) {
+                        laser.velocityX = (laser.velocityX / speed) * laser.speed;
+                        laser.velocityY = (laser.velocityY / speed) * laser.speed;
+                    }
+                }
+
+                laser.x += laser.velocityX;
+                laser.y += laser.velocityY;
+
+                // Eliminar láseres fuera del canvas
+                if (laser.x < -laser.width || laser.x > canvas.width + laser.width ||
+                    laser.y < -laser.height || laser.y > canvas.height + laser.height) {
+                    lasers.splice(i, 1);
+                    score++;
+                }
+            }
+        }
+
+        // Detectar colisiones
+        function checkCollisions() {
+            for (let i = 0; i < lasers.length; i++) {
+                const laser = lasers[i];
+                const distX = Math.abs(player.x - laser.x);
+                const distY = Math.abs(player.y - laser.y);
+                if (distX < player.radius + Math.max(laser.width, laser.height) / 2 &&
+                    distY < player.radius + Math.max(laser.width, laser.height) / 2) {
+                    lives--;
+                    lasers.splice(i, 1); // Eliminar el láser que colisionó
+                    if (lives <= 0) {
+                        gameOver();
+                    }
+                    return; // Solo una colisión por frame
+                }
+            }
+        }
+
+        // Dibujar todo
+        function draw() {
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dibujar jugador
+            ctx.fillStyle = '#0f0';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Dibujar láseres
+            for (let laser of lasers) {
+                ctx.fillStyle = laser.isHoming ? '#ff0' : '#f00'; // Amarillo para homing
+                ctx.fillRect(laser.x - laser.width / 2, laser.y - laser.height / 2, laser.width, laser.height);
+            }
+
+            // Dibujar puntuación y vidas
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Puntuación: ${score}`, 10, 30);
+            ctx.fillText(`Vidas: ${lives}`, 10, 60);
+            if (score >= homingThreshold) {
+                ctx.fillText('¡Modo Persecución Activado!', 10, 90);
+            }
+        }
+
+        // Game Over
+        function gameOver() {
+            gameRunning = false;
+            scoreElement.textContent = score;
+            livesElement.textContent = lives;
+            gameOverDiv.style.display = 'block';
+        }
+
+        // Reiniciar juego
+        function restartGame() {
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 50;
+            lasers = [];
+            score = 0;
+            lives = 3;
+            currentSpawnRate = baseSpawnRate;
+            difficultyTimer = 0;
+            gameRunning = true;
+            gameOverDiv.style.display = 'none';
+            gameLoop();
+        }
+
+        // Loop principal
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            updatePlayer();
+            updateLasers();
+            checkCollisions();
+            draw();
+
+            // Ajuste gradual de dificultad
+            currentSpawnRate = Math.min(0.06, baseSpawnRate + score / 5000); // Aumenta spawn rate gradualmente
+
+            // Aumentar umbral de homing a medida que avanza
+            homingThreshold = Math.max(20, 50 - score / 10); // Baja el umbral para activar homing antes
+
+            // Generar láser aleatorio con tasa ajustada
+            if (Math.random() < currentSpawnRate) {
+                createLaser();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Iniciar juego
+        gameLoop();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

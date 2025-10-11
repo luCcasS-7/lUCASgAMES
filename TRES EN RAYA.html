@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tres en Raya (Tic Tac Toe)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .game-container {
+            text-align: center;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            margin: 20px auto;
+        }
+        .cell {
+            background-color: white;
+            border: 2px solid #333;
+            font-size: 2em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .cell:hover {
+            background-color: #f9f9f9;
+        }
+        .cell.x { color: #e74c3c; }
+        .cell.o { color: #3498db; }
+        .status {
+            font-size: 1.5em;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #resetBtn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #resetBtn:hover {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Tres en Raya</h1>
+        <div class="status" id="status">¡Juega como X! (Humano vs Máquina)</div>
+        <div class="board" id="board"></div>
+        <button id="resetBtn">Reiniciar Juego</button>
+    </div>
+
+    <script>
+        const board = Array(9).fill(null);
+        const statusEl = document.getElementById('status');
+        const boardEl = document.getElementById('board');
+        const resetBtn = document.getElementById('resetBtn');
+        let currentPlayer = 'X'; // Humano empieza como X
+        let gameActive = true;
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
+            [0, 4, 8], [2, 4, 6] // Diagonales
+        ];
+
+        function createBoard() {
+            boardEl.innerHTML = '';
+            board.forEach((_, index) => {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.addEventListener('click', () => handleCellClick(index));
+                boardEl.appendChild(cell);
+            });
+        }
+
+        function handleCellClick(index) {
+            if (board[index] || !gameActive || currentPlayer !== 'X') return;
+
+            board[index] = 'X';
+            updateBoard();
+            if (checkWin('X')) {
+                statusEl.textContent = '¡X gana!';
+                gameActive = false;
+                return;
+            }
+            if (checkDraw()) {
+                statusEl.textContent = '¡Empate!';
+                gameActive = false;
+                return;
+            }
+
+            currentPlayer = 'O';
+            statusEl.textContent = 'Turno de la Máquina (O)';
+            setTimeout(aiMove, 500); // Pequeño delay para simular pensamiento
+        }
+
+        function aiMove() {
+            if (!gameActive) return;
+
+            // IA básica: elige una celda vacía al azar
+            const emptyCells = board.map((cell, index) => cell === null ? index : null).filter(index => index !== null);
+            if (emptyCells.length === 0) return;
+
+            const randomIndex = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            board[randomIndex] = 'O';
+            updateBoard();
+
+            if (checkWin('O')) {
+                statusEl.textContent = '¡La Máquina gana!';
+                gameActive = false;
+                return;
+            }
+            if (checkDraw()) {
+                statusEl.textContent = '¡Empate!';
+                gameActive = false;
+                return;
+            }
+
+            currentPlayer = 'X';
+            statusEl.textContent = 'Tu turno (X)';
+        }
+
+        function checkWin(player) {
+            return winningConditions.some(condition => 
+                condition.every(index => board[index] === player)
+            );
+        }
+
+        function checkDraw() {
+            return board.every(cell => cell !== null);
+        }
+
+        function updateBoard() {
+            const cells = boardEl.querySelectorAll('.cell');
+            cells.forEach((cell, index) => {
+                cell.textContent = board[index];
+                cell.classList.remove('x', 'o');
+                if (board[index] === 'X') cell.classList.add('x');
+                if (board[index] === 'O') cell.classList.add('o');
+            });
+        }
+
+        function resetGame() {
+            board.fill(null);
+            currentPlayer = 'X';
+            gameActive = true;
+            statusEl.textContent = '¡Juega como X! (Humano vs Máquina)';
+            createBoard();
+        }
+
+        resetBtn.addEventListener('click', resetGame);
+
+        createBoard();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

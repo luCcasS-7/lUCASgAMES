@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rueda de la Fortuna - Wheel of Fortune</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        canvas {
+            border: 2px solid #fff;
+            border-radius: 50%;
+            margin: 20px auto;
+            display: block;
+        }
+        #controls {
+            margin: 20px;
+        }
+        button {
+            background-color: #ffcc00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #ffd700;
+        }
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        #puzzle {
+            font-size: 48px;
+            letter-spacing: 5px;
+            margin: 20px;
+            min-height: 60px;
+        }
+        #score {
+            font-size: 24px;
+            margin: 10px;
+        }
+        #message {
+            font-size: 20px;
+            color: #ffcc00;
+        }
+        #menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        #menu-content {
+            background-color: #333;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        #menu-content h2 {
+            margin-bottom: 20px;
+        }
+        #game-area {
+            display: none;
+        }
+        input {
+            font-size: 18px;
+            padding: 5px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <div id="menu-content">
+            <h2>¡Bienvenido a la Rueda de la Fortuna!</h2>
+            <p>Elige una opción:</p>
+            <button onclick="startNewGame()">Nueva Partida</button>
+            <button onclick="showInstructions()">Instrucciones</button>
+            <button onclick="showAbout()">Acerca de</button>
+            <div id="menu-subcontent" style="display: none; margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="game-area">
+        <h1>Rueda de la Fortuna</h1>
+        <p>¡Gira la rueda y adivina la frase!</p>
+        
+        <canvas id="wheel" width="400" height="400"></canvas>
+        
+        <div id="score">Puntuación: $0</div>
+        <div id="puzzle">_ _   _ _   _ _ _ _ _   _ _   _ _ _ _ _ _</div>
+        <div id="message">Elige una letra o gira la rueda</div>
+        
+        <div id="controls">
+            <button id="spinBtn" onclick="spinWheel()">Girar Rueda</button>
+            <button id="buyBtn" onclick="buyVowel()">Comprar Vocal (A,E,I,O,U)</button>
+            <input type="text" id="letterInput" maxlength="1" placeholder="Letra" style="font-size: 18px; padding: 5px;">
+            <button onclick="guessLetter()">Adivinar Letra</button>
+            <button onclick="guessPhrase()">Adivinar Frase</button>
+            <input type="text" id="phraseInput" placeholder="Frase completa" style="width: 200px; padding: 5px;">
+            <button onclick="showMenu()">Menú Principal</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = 180;
+
+        // Secciones de la rueda (simplificado: dinero, pierde turno, quiebra, premio especial)
+        const sections = [
+            { value: 100, color: '#ff0000' },
+            { value: 200, color: '#ff6600' },
+            { value: 300, color: '#ffff00' },
+            { value: 400, color: '#00ff00' },
+            { value: 500, color: '#0066ff' },
+            { value: 600, color: '#6600ff' },
+            { value: 'Pasa Turno', color: '#cccccc' },
+            { value: 'Quiebra', color: '#000000' }
+        ];
+
+        let currentAngle = 0;
+        let spinning = false;
+        let score = 0;
+        let puzzle = '';
+        let revealed = [];
+
+        // Array de frases diferentes para puzzles aleatorios
+        const phrases = [
+            'LA VIDA ES UN VIAJE',
+            'EL FUTURO ES AHORA',
+            'AMOR VERDADERO',
+            'SUEÑOS REALIZADOS',
+            'AVENTURA ESPERANDO',
+            'MÚSICA EN EL AIRE',
+            'LIBROS DE HISTORIA',
+            'CAFÉ MAÑANERO',
+            'ESTRELLAS EN EL CIELO',
+            'BAILE DE LA VIDA',
+            'AMIGOS PARA SIEMPRE',
+            'VIAJE AL DESCONOCIDO',
+            'RISA CONTAGIOSA',
+            'SOL BRILLANTE',
+            'OCÉANO AZUL'
+        ];
+
+        function getRandomPhrase() {
+            const randomIndex = Math.floor(Math.random() * phrases.length);
+            return phrases[randomIndex];
+        }
+
+        function initializePuzzle() {
+            puzzle = getRandomPhrase();
+            revealed = Array(puzzle.length).fill('_');
+            for (let i = 0; i < puzzle.length; i++) {
+                if (puzzle[i] === ' ') {
+                    revealed[i] = ' ';
+                }
+            }
+            updateDisplay();
+        }
+
+        function drawWheel() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(currentAngle);
+
+            const numSections = sections.length;
+            const anglePerSection = (2 * Math.PI) / numSections;
+
+            for (let i = 0; i < numSections; i++) {
+                const startAngle = i * anglePerSection;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radius, startAngle, startAngle + anglePerSection);
+                ctx.closePath();
+                ctx.fillStyle = sections[i].color;
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Etiqueta
+                ctx.save();
+                ctx.translate(radius / 2 * Math.cos(startAngle + anglePerSection / 2), 
+                              radius / 2 * Math.sin(startAngle + anglePerSection / 2));
+                ctx.rotate(startAngle + anglePerSection / 2 + Math.PI / 2);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(sections[i].value.toString(), 0, 5);
+                ctx.restore();
+            }
+
+            // Flecha central
+            ctx.restore();
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY - radius - 20);
+            ctx.lineTo(centerX - 10, centerY - radius);
+            ctx.lineTo(centerX + 10, centerY - radius);
+            ctx.closePath();
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            // Centro
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ffcc00';
+            ctx.fill();
+        }
+
+        function spinWheel() {
+            if (spinning) return;
+            spinning = true;
+            document.getElementById('spinBtn').disabled = true;
+            const spinSpeed = Math.random() * 0.5 + 0.5; // Velocidad aleatoria
+            const targetAngle = Math.random() * 2 * Math.PI;
+            let startTime = null;
+
+            function animate(time) {
+                if (!startTime) startTime = time;
+                const elapsed = time - startTime;
+                const progress = Math.min(elapsed / 3000, 1); // 3 segundos de giro
+
+                // Easing para desaceleración
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                currentAngle = currentAngle + (targetAngle - currentAngle) * easeOut * spinSpeed;
+
+                drawWheel();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    spinning = false;
+                    document.getElementById('spinBtn').disabled = false;
+                    // Determinar sección donde paró
+                    const normalizedAngle = (currentAngle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+                    const sectionAngle = (2 * Math.PI) / sections.length;
+                    const sectionIndex = Math.floor((2 * Math.PI - normalizedAngle) / sectionAngle) % sections.length;
+                    const result = sections[sectionIndex].value;
+                    
+                    document.getElementById('message').textContent = `¡Paró en: ${result}!`;
+                    
+                    if (result === 'Quiebra') {
+                        score = 0;
+                    } else if (result === 'Pasa Turno') {
+                        // Simular pasa turno
+                        document.getElementById('message').textContent += ' - Pierdes el turno.';
+                    } else {
+                        score += parseInt(result) || 0;
+                    }
+                    updateDisplay();
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function updateDisplay() {
+            document.getElementById('score').textContent = `Puntuación: $${score}`;
+            document.getElementById('puzzle').textContent = revealed.join('');
+        }
+
+        function guessLetter() {
+            const letter = document.getElementById('letterInput').value.toUpperCase();
+            if (!letter || letter.length !== 1 || !(/[A-Z]/.test(letter))) {
+                alert('Ingresa una letra válida (A-Z)');
+                return;
+            }
+            document.getElementById('letterInput').value = '';
+
+            if (letter.match(/[AEIOU]/)) {
+                if (score < 250) {
+                    document.getElementById('message').textContent = 'No tienes suficiente para comprar una vocal ($250)';
+                    return;
+                }
+                score -= 250;
+            }
+
+            let found = false;
+            for (let i = 0; i < puzzle.length; i++) {
+                if (puzzle[i] === letter) {
+                    revealed[i] = letter;
+                    found = true;
+                }
+            }
+
+            if (found) {
+                if (!letter.match(/[AEIOU]/)) {
+                    score *= (revealed.filter(c => c === letter).length); // Puntos por cada ocurrencia (simplificado)
+                }
+                document.getElementById('message').textContent = `¡Correcto! Letra ${letter} encontrada.`;
+            } else {
+                document.getElementById('message').textContent = `Letra ${letter} no está en la frase. Pierdes el turno.`;
+            }
+
+            updateDisplay();
+            checkWin();
+        }
+
+        function buyVowel() {
+            // Esta función se integra en guessLetter para vocales
+            guessLetter(); // Reutiliza la lógica
+        }
+
+        function guessPhrase() {
+            const guess = document.getElementById('phraseInput').value.toUpperCase().replace(/\s/g, ' ');
+            document.getElementById('phraseInput').value = '';
+
+            if (guess === puzzle) {
+                alert(`¡Ganaste! La frase era: "${puzzle}".`);
+                score += 1000; // Premio final
+                updateDisplay();
+                showMenu(); // Volver al menú al ganar
+            } else {
+                document.getElementById('message').textContent = 'Frase incorrecta. Intenta de nuevo.';
+            }
+        }
+
+        function checkWin() {
+            if (!revealed.includes('_')) {
+                alert(`¡Felicidades! Resolviste el puzzle: "${puzzle}".`);
+                showMenu(); // Volver al menú al resolver
+            }
+        }
+
+        // Funciones del menú
+        function startNewGame() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('game-area').style.display = 'block';
+            score = 0;
+            initializePuzzle();
+            currentAngle = 0;
+            spinning = false;
+            document.getElementById('spinBtn').disabled = false;
+            document.getElementById('message').textContent = '¡Nueva partida! Gira la rueda.';
+            drawWheel();
+            updateDisplay();
+        }
+
+        function showInstructions() {
+            const subcontent = document.getElementById('menu-subcontent');
+            subcontent.innerHTML = `
+                <h3>Instrucciones:</h3>
+                <p>1. Gira la rueda para ganar dinero o premios.</p>
+                <p>2. Usa el dinero para adivinar letras (consonantes gratis, vocales $250).</p>
+                <p>3. Revela la frase adivinando letras o la frase completa.</p>
+                <p>4. ¡Evita "Quiebra" y "Pasa Turno"!</p>
+                <button onclick="hideSubcontent()">Volver</button>
+            `;
+            subcontent.style.display = 'block';
+        }
+
+        function showAbout() {
+            const subcontent = document.getElementById('menu-subcontent');
+            subcontent.innerHTML = `
+                <h3>Acerca de:</h3>
+                <p>Versión simplificada de Wheel of Fortune en HTML/JS.</p>
+                <p>Creado para diversión. Frases aleatorias cada partida.</p>
+                <button onclick="hideSubcontent()">Volver</button>
+            `;
+            subcontent.style.display = 'block';
+        }
+
+        function hideSubcontent() {
+            document.getElementById('menu-subcontent').style.display = 'none';
+        }
+
+        function showMenu() {
+            document.getElementById('game-area').style.display = 'none';
+            document.getElementById('menu').style.display = 'flex';
+            hideSubcontent();
+        }
+
+        // Inicializar menú visible
+        document.getElementById('menu-subcontent').style.display = 'none';
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

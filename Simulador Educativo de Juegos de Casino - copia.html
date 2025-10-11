@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Educativo de Juegos de Casino: Descubre la Ventaja de la Casa 🎰</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #fff;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #ffd700;
+        }
+        .balance {
+            font-size: 24px;
+            margin: 20px 0;
+            color: #00ff00;
+        }
+        .game-info {
+            margin: 20px 0;
+            font-size: 18px;
+        }
+        .bet-input, select {
+            padding: 10px;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button {
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #ff6347;
+        }
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        .result {
+            font-size: 20px;
+            margin: 20px 0;
+            min-height: 50px;
+        }
+        .win { color: #00ff00; }
+        .loss { color: #ff0000; }
+        .info-section {
+            background-color: #333;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #555;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #555;
+        }
+        .equation {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .warning {
+            background-color: #ff0000;
+            color: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        ul {
+            text-align: left;
+        }
+        /* Visuales para juegos */
+        .game-visual {
+            margin: 20px 0;
+            min-height: 400px;
+            position: relative;
+        }
+        /* CSS para Ruleta realista (mantener anterior) */
+        @keyframes wheelRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(359deg); }
+        }
+        @keyframes ballRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-359deg); }
+        }
+        .roulette-container {
+            position: relative;
+            width: 350px;
+            height: 350px;
+            margin: 0 auto;
+        }
+        .wheel {
+            height: 312px;
+            width: 312px;
+            position: relative;
+            left: -20px;
+            animation: wheelRotate 5s linear infinite;
+            margin: 0 auto;
+        }
+        .outerRim {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 290px;
+            height: 290px;
+            border-radius: 100%;
+            box-shadow: 0px 0px 8px rgba(0,0,0,0.5);
+            border: 10px solid #F3c620;
+        }
+        .sect {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 290px;
+            height: 290px;
+            border-radius: 100%;
+            clip: rect(0px, 290px, 290px, 145px);
+        }
+        .block {
+            position: absolute;
+            width: 290px;
+            height: 290px;
+            border-radius: 100%;
+            clip: rect(0px, 145px, 290px, 0px);
+            top: 0;
+            left: 0;
+        }
+        .double, .single {
+            position: absolute;
+            z-index: 10;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 4.5px;
+        }
+        .double { left: 148px; }
+        .single { left: 152px; }
+        .pocketsRim {
+            position: absolute;
+            top: 34px;
+            left: 34px;
+            width: 235px;
+            height: 235px;
+            border-radius: 100%;
+            border: 3px solid #c0c0c0;
+        }
+        .ballTrack {
+            width: 212px;
+            height: 207px;
+            position: absolute;
+            left: 47.5px;
+            top: 50px;
+            border-radius: 100%;
+            z-index: 2;
+            animation: ballRotate 1s linear infinite;
+        }
+        .ball {
+            background-color: #fff;
+            width: 16px;
+            height: 16px;
+            border-radius: 100%;
+            position: relative;
+            left: 98px;
+            top: -8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        .pockets {
+            position: absolute;
+            top: 37px;
+            left: 37px;
+            width: 235px;
+            height: 235px;
+            background-color: #000;
+            border-radius: 100%;
+            opacity: .5;
+        }
+        .cone {
+            position: absolute;
+            top: 62px;
+            left: 61px;
+            height: 180px;
+            width: 180px;
+            border: 3px solid #9f9a9a;
+            border-radius: 100%;
+            background: radial-gradient(circle at 90px 90px, #892c10, #000);
+        }
+        .turret {
+            border-radius: 100%;
+            background: radial-gradient(circle at 30% 30%, #f3c620, #1a1608);
+            width: 45px;
+            height: 45px;
+            position: absolute;
+            top: 133px;
+            left: 134px;
+            z-index: 1;
+        }
+        .turretHandle {
+            background: radial-gradient(circle at 44%, #f3c620, #6a570f);
+            width: 87px;
+            height: 14px;
+            position: absolute;
+            left: 113px;
+            top: 148px;
+        }
+        .thendOne, .thendTwo {
+            border-radius: 100%;
+            background: radial-gradient(circle at 30% 30%, #f3c620, #1a1608);
+            width: 25px;
+            height: 25px;
+            position: absolute;
+        }
+        .thendOne { top: -6px; left: -20px; }
+        .thendTwo { top: -6px; left: 83px; }
+        .bet-info {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #ffd700;
+        }
+        /* Slots (mejorado) */
+        .slot-reels {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .reel {
+            width: 60px;
+            height: 100px;
+            background: #000;
+            border: 2px solid #ffd700;
+            overflow: hidden;
+            position: relative;
+        }
+        .reel-symbol {
+            height: 20px;
+            line-height: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .reel.spinning .reel-symbols {
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-200px); }
+        }
+        /* Blackjack y Baccarat - Flip Cards */
+        .card-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .flip-card {
+            background-color: transparent;
+            width: 80px;
+            height: 120px;
+            perspective: 1000px;
+        }
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 1s;
+            transform-style: preserve-3d;
+        }
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 24px;
+        }
+        .flip-card-front {
+            background-color: #fff;
+            color: #000;
+            border: 2px solid #000;
+        }
+        .flip-card-back {
+            background-color: #000;
+            color: #fff;
+            transform: rotateY(180deg);
+            border: 2px solid #fff;
+        }
+        /* Craps - 3D Dice */
+        .dice-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+        }
+        .dice {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            transform-style: preserve-3d;
+            transition: transform 1s;
+        }
+        .dice-face {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            padding: 5px;
+            border: 1px solid #838383;
+            border-radius: 5px;
+            background-color: #282A3A;
+            backface-visibility: hidden;
+        }
+        .dot {
+            height: 10px;
+            width: 10px;
+            background-color: #fff;
+            border-radius: 50%;
+            box-shadow: 0px 0px 5px #ffffff94;
+            display: block;
+        }
+        /* Dots positions for faces (simplified from snippet) */
+        .dice-face[data-face="1"] { display: flex; align-items: center; justify-content: center; transform: translateZ(50px); }
+        .dice-face[data-face="2"] { display: flex; align-items: center; justify-content: space-evenly; transform: rotateY(180deg) translateZ(50px); }
+        .dice-face[data-face="3"] { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; transform: rotateY(90deg) translateZ(50px); }
+        .dice-face[data-face="4"] { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; transform: rotateX(90deg) translateZ(50px); }
+        .dice-face[data-face="5"] { display: grid; grid-template: 1fr 1fr / 1fr 1fr; place-items: center; transform: rotateX(-90deg) translateZ(50px); }
+        .dice-face[data-face="6"] { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; transform: rotateY(-90deg) translateZ(50px); }
+        .dice.rolling {
+            animation: roll 1.2s ease-in-out infinite;
+        }
+        @keyframes roll {
+            0% { transform: rotateX(0deg) rotateZ(0deg); }
+            25% { transform: rotateX(90deg) rotateZ(90deg); }
+            50% { transform: rotateX(180deg) rotateZ(180deg); }
+            75% { transform: rotateX(360deg) rotateZ(360deg); }
+            100% { transform: rotateX(180deg) rotateZ(180deg); }
+        }
+        /* Keno - Number Counter Animation */
+        @property --num {
+            syntax: '<integer>';
+            initial-value: 0;
+            inherits: false;
+        }
+        .keno-draw {
+            font-size: 48px;
+            font-weight: bold;
+            color: #ffd700;
+            margin: 20px 0;
+            transition: --num 2s ease-in-out;
+            counter-reset: num var(--num);
+        }
+        .keno-draw::after {
+            content: counter(num);
+        }
+        .keno-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 5px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .keno-number {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            transition: background 0.5s;
+        }
+        .keno-number.drawn {
+            background: #00ff00;
+            animation: pulse 1s;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎰 Simulador Educativo de Juegos de Casino: Descubre la Ventaja de la Casa</h1>
+        <p>Elige un juego, simula apuestas y ve las animaciones super chulas en acción. ¡Recuerda: esto es solo educativo!</p>
+        
+        <div class="balance">Saldo actual: <span id="balance">1000</span> €</div>
+        
+        <div class="game-info">
+            <label for="gameSelect">Elige un juego:</label>
+            <select id="gameSelect" onchange="updateGameInfo()">
+                <option value="ruleta-europea">Ruleta Europea</option>
+                <option value="ruleta-americana">Ruleta Americana</option>
+                <option value="blackjack">Blackjack</option>
+                <option value="baccarat">Baccarat (Apuesta a la Banca)</option>
+                <option value="tragamonedas">Tragamonedas</option>
+                <option value="craps">Craps (Pase de Línea)</option>
+                <option value="keno">Keno</option>
+            </select>
+            
+            <div id="currentGameInfo">
+                <div>Juego seleccionado: <span id="gameName">Ruleta Europea</span></div>
+                <div>Ventaja de la casa: <span id="houseEdge">2.7</span> %</div>
+            </div>
+        </div>
+        
+        <label for="betAmount">Apuesta (€):</label>
+        <input type="number" id="betAmount" class="bet-input" value="10" min="1" max="1000">
+        
+        <br>
+        <button id="playBtn" onclick="playGame()">Jugar</button>
+        <button onclick="resetGame()">Reiniciar Saldo</button>
+        
+        <div id="gameVisual" class="game-visual"></div>
+        
+        <div id="result" class="result"></div>
+        
+        <!-- Secciones informativas (mantener anteriores) -->
+        <div class="info-section">
+            <h2>1. Ventaja de la Casa (House Edge)</h2>
+            <p>Es el porcentaje promedio que el casino gana sobre cada apuesta realizada. Representa la diferencia entre las probabilidades reales de ganar y las probabilidades que el casino paga. Cuanto mayor es la ventaja de la casa, más gana el casino a largo plazo.</p>
+            
+            <table>
+                <tr>
+                    <th>Juego</th>
+                    <th>Ventaja de la casa (aprox.)</th>
+                </tr>
+                <tr>
+                    <td>Ruleta europea (un solo cero)</td>
+                    <td>2.7 %</td>
+                </tr>
+                <tr>
+                    <td>Ruleta americana (doble cero)</td>
+                    <td>5.26 %</td>
+                </tr>
+                <tr>
+                    <td>Blackjack (con estrategia óptima)</td>
+                    <td>0.5 % a 1 %</td>
+                </tr>
+                <tr>
+                    <td>Baccarat (apuesta a la banca)</td>
+                    <td>1.06 %</td>
+                </tr>
+                <tr>
+                    <td>Tragamonedas</td>
+                    <td>3 % a 15 %</td>
+                </tr>
+                <tr>
+                    <td>Craps (pase de línea)</td>
+                    <td>1.41 %</td>
+                </tr>
+                <tr>
+                    <td>Keno</td>
+                    <td>20 % a 35 %</td>
+                </tr>
+            </table>
+            
+            <p><strong>👉 Ejemplo:</strong> Si en la ruleta europea apuestas 100 €, el casino espera quedarse con unos 2.70 € a largo plazo (2.7 %).</p>
+        </div>
+        
+        <div class="info-section">
+            <h2>💰 2. Retorno al Jugador (RTP, Return To Player)</h2>
+            <p>Es el porcentaje promedio que se devuelve al jugador en forma de premios.</p>
+            <p class="equation">RTP = 100% - Ventaja de la casa</p>
+            
+            <table>
+                <tr>
+                    <th>Juego</th>
+                    <th>RTP aproximado</th>
+                </tr>
+                <tr>
+                    <td>Ruleta europea</td>
+                    <td>97.3 %</td>
+                </tr>
+                <tr>
+                    <td>Blackjack</td>
+                    <td>99 %</td>
+                </tr>
+                <tr>
+                    <td>Tragamonedas (online)</td>
+                    <td>85 – 98 %</td>
+                </tr>
+                <tr>
+                    <td>Baccarat (banca)</td>
+                    <td>98.94 %</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="info-section">
+            <h2>📉 3. Interpretación Práctica</h2>
+            <p>En el corto plazo, un jugador puede ganar o perder grandes cantidades por azar. En el largo plazo, el casino siempre gana el porcentaje de la ventaja de la casa. Por eso, los casinos pueden operar de manera rentable aunque paguen premios altos de vez en cuando.</p>
+            
+            <p><strong>🧮 Ejemplo general:</strong> Si un casino tiene un promedio de 5 % de ventaja, significa que: De cada 1.000.000 € apostados, el casino gana 50.000 € en promedio. Los jugadores recuperan 950.000 € en premios distribuidos entre ellos.</p>
+        </div>
+
+        <div class="warning info-section">
+            <h2>⚠️ 4. ¿Por Qué la Ludopatía No Es Buena?</h2>
+            <p>La ludopatía, o adicción al juego, es un trastorno que va más allá del entretenimiento y puede causar graves daños en múltiples aspectos de la vida. Aunque este simulador es solo educativo, es importante entender los riesgos reales del gambling patológico:</p>
+            <ul>
+                <li><strong>Problemas de salud mental:</strong> Aumenta el riesgo de ansiedad, depresión, trastornos de personalidad y abuso de sustancias.</li>
+                <li><strong>Dificultades financieras:</strong> Pérdidas graves de dinero, deudas acumuladas y posible involucramiento en crimen o fraude para obtener fondos.</li>
+                <li><strong>Impacto en relaciones:</strong> Rupturas familiares, aislamiento social y violencia doméstica.</li>
+                <li><strong>Problemas laborales y académicos:</strong> Pérdida de empleo, bajo rendimiento o abandono de estudios.</li>
+                <li><strong>Riesgo de suicidio:</strong> Pensamientos o intentos suicidas debido al estrés y la desesperación.</li>
+                <li><strong>Cambios cerebrales:</strong> Alteraciones en la estructura del cerebro similares a otras adicciones.</li>
+            </ul>
+            <p><strong>Consejo:</strong> Si sientes que el juego se está volviendo un problema, busca ayuda profesional. Recursos como líneas de ayuda (ej: en España, 900 200 225) pueden ser un gran apoyo. Juega responsablemente o no juegues en absoluto.</p>
+        </div>
+    </div>
+
+    <script>
+        let balance = 1000;
+        let currentGameKey = 'ruleta-europea';
+        let playerBet = 17;
+        let dice1, dice2; // For craps
+
+        const redNumbers = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+        const getColor = (num) => {
+            if (num === 0) return '#016D29';
+            return redNumbers.includes(num) ? '#E0080B' : '#000';
+        };
+
+        const europeanNumbers = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+        const americanNumbers = [0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 27, 6, 23, 25, 16, 33, 1, 35, 14, 18, 19, 31, 8, 21, 10, 29, 2, 4, 12, 37];
+        const americanDisplay = (num) => num === 37 ? '00' : num;
+
+        const games = {
+            'ruleta-europea': {
+                name: 'Ruleta Europea',
+                houseEdge: 0.027,
+                visual: 'roulette-european',
+                numbers: europeanNumbers,
+                total: 37,
+                angle: 360 / 37,
+                play: (bet, callback) => {
+                    const landingNum = Math.floor(Math.random() * 37);
+                    spinRoulette('european', landingNum, bet, (grossWin, msg) => callback(grossWin, msg));
+                }
+            },
+            'ruleta-americana': {
+                name: 'Ruleta Americana',
+                houseEdge: 0.0526,
+                visual: 'roulette-american',
+                numbers: americanNumbers,
+                total: 38,
+                angle: 360 / 38,
+                play: (bet, callback) => {
+                    const landingNum = Math.floor(Math.random() * 38);
+                    spinRoulette('american', landingNum, bet, (grossWin, msg) => callback(grossWin, msg));
+                }
+            },
+            'blackjack': {
+                name: 'Blackjack (Estrategia Óptima)',
+                houseEdge: 0.005,
+                visual: 'blackjack',
+                play: (bet, callback) => {
+                    const cards = document.querySelectorAll('.flip-card');
+                    cards.forEach(card => card.classList.add('flipped'));
+                    const r = Math.random();
+                    let msg, grossWin;
+                    if (r < 0.42) {
+                        grossWin = 0;
+                        msg = '<span class="loss">Perdiste. (Tus cartas: 18 vs Crupier 20)</span>';
+                    } else if (r < 0.505) {
+                        grossWin = bet;
+                        msg = '<span class="win">Empate, apuesta devuelta. (Ambos 20)</span>';
+                    } else {
+                        grossWin = bet * 2;
+                        msg = '<span class="win">¡Ganaste! Pago 1:1 (Tus cartas: 21 vs Crupier 19)</span>';
+                    }
+                    setTimeout(() => {
+                        cards.forEach(card => card.classList.remove('flipped'));
+                        callback(grossWin, msg);
+                    }, 2000);
+                }
+            },
+            'baccarat': {
+                name: 'Baccarat (Apuesta a la Banca)',
+                houseEdge: 0.0106,
+                visual: 'baccarat',
+                play: (bet, callback) => {
+                    const cards = document.querySelectorAll('.flip-card');
+                    cards.forEach(card => card.classList.add('flipped'));
+                    const r = Math.random();
+                    let grossWin, msg;
+                    if (r < 0.4462) {
+                        grossWin = 0;
+                        msg = '<span class="loss">Perdiste. (Jugador 9, Banca 8)</span>';
+                    } else if (r < 0.5414) {
+                        grossWin = bet;
+                        msg = '<span class="win">Empate, apuesta devuelta. (Ambos 9)</span>';
+                    } else {
+                        const winAmount = bet * 0.95;
+                        grossWin = bet + winAmount;
+                        msg = `<span class="win">¡Ganaste! Pago 0.95:1 (+${winAmount.toFixed(2)} €) (Banca 9, Jugador 8)</span>`;
+                    }
+                    setTimeout(() => {
+                        cards.forEach(card => card.classList.remove('flipped'));
+                        callback(grossWin, msg);
+                    }, 2000);
+                }
+            },
+            'tragamonedas': {
+                name: 'Tragamonedas',
+                houseEdge: 0.04,
+                visual: 'slots',
+                play: (bet, callback) => {
+                    const reels = document.querySelectorAll('.reel');
+                    const playBtn = document.getElementById('playBtn');
+                    playBtn.disabled = true;
+                    reels.forEach(reel => reel.classList.add('spinning'));
+                    
+                    setTimeout(() => {
+                        reels.forEach(reel => reel.classList.remove('spinning'));
+                        const reel1 = Math.floor(Math.random() * 10) + 1;
+                        const reel2 = Math.floor(Math.random() * 10) + 1;
+                        const reel3 = Math.floor(Math.random() * 10) + 1;
+                        document.querySelectorAll('.reel-symbol').forEach((sym, i) => {
+                            sym.textContent = [reel1, reel2, reel3][i % 3];
+                        });
+                        if (reel1 === reel2 && reel2 === reel3) {
+                            const winAmount = bet * 95;
+                            callback(bet * 96, `<span class="win">¡Jackpot! ${reel1}${reel1}${reel1} Ganancia: +${winAmount} €</span>`);
+                        } else {
+                            callback(0, `<span class="loss">Perdiste. ${reel1}-${reel2}-${reel3}</span>`);
+                        }
+                        playBtn.disabled = false;
+                    }, 3000);
+                }
+            },
+            'craps': {
+                name: 'Craps (Pase de Línea)',
+                houseEdge: 0.0141,
+                visual: 'craps',
+                play: (bet, callback) => {
+                    rollDice(bet, callback);
+                }
+            },
+            'keno': {
+                name: 'Keno',
+                houseEdge: 0.25,
+                visual: 'keno',
+                play: (bet, callback) => {
+                    const drawEl = document.getElementById('kenoDraw');
+                    const hit = Math.random() < 0.25;
+                    const drawnNum = Math.floor(Math.random() * 80) + 1;
+                    drawEl.style.setProperty('--num', drawnNum);
+                    setTimeout(() => {
+                        let grossWin, msg;
+                        if (hit) {
+                            const winAmount = bet * 2;
+                            grossWin = bet * 3;
+                            msg = `<span class="win">¡Acierto! Número: ${drawnNum}. Ganancia: +${winAmount} € (Pago 2:1)</span>`;
+                        } else {
+                            grossWin = 0;
+                            msg = `<span class="loss">Sin acierto. Número: ${drawnNum}</span>`;
+                        }
+                        callback(grossWin, msg);
+                    }, 2500);
+                }
+            }
+        };
+
+        // Funciones para ruleta (mantener anteriores)
+        function buildRouletteWheel(div, numbers, angle, type) {
+            div.innerHTML = '<div class="roulette-container"><div class="wheel" id="wheel"></div></div><div class="bet-info">Apuesta fija al ' + playerBet + '</div>';
+            const wheel = document.getElementById('wheel');
+            const outerRim = document.createElement('div');
+            outerRim.className = 'outerRim';
+            wheel.appendChild(outerRim);
+
+            for (let i = 0; i < numbers.length; i++) {
+                const num = numbers[i];
+                const sect = document.createElement('div');
+                sect.className = 'sect';
+                sect.style.transform = `rotate(${i * angle}deg)`;
+
+                const span = document.createElement('span');
+                span.className = num < 10 ? 'single' : 'double';
+                span.innerText = num;
+                span.style.transform = `rotate(${- (i * angle + angle / 2)}deg)`;
+                sect.appendChild(span);
+
+                const block = document.createElement('div');
+                block.className = 'block';
+                block.style.backgroundColor = getColor(num);
+                block.style.transform = `rotate(${angle}deg)`;
+                sect.appendChild(block);
+
+                wheel.appendChild(sect);
+            }
+
+            const pocketsRim = document.createElement('div');
+            pocketsRim.className = 'pocketsRim';
+            wheel.appendChild(pocketsRim);
+
+            const ballTrack = document.createElement('div');
+            ballTrack.className = 'ballTrack';
+            const ball = document.createElement('div');
+            ball.className = 'ball';
+            ballTrack.appendChild(ball);
+            wheel.appendChild(ballTrack);
+
+            const pockets = document.createElement('div');
+            pockets.className = 'pockets';
+            wheel.appendChild(pockets);
+
+            const cone = document.createElement('div');
+            cone.className = 'cone';
+            wheel.appendChild(cone);
+
+            const turret = document.createElement('div');
+            turret.className = 'turret';
+            wheel.appendChild(turret);
+
+            const turretHandle = document.createElement('div');
+            turretHandle.className = 'turretHandle';
+            const thendOne = document.createElement('div');
+            thendOne.className = 'thendOne';
+            turretHandle.appendChild(thendOne);
+            const thendTwo = document.createElement('div');
+            thendTwo.className = 'thendTwo';
+            turretHandle.appendChild(thendTwo);
+            wheel.appendChild(turretHandle);
+        }
+
+        function spinRoulette(type, winningNum, bet, callback) {
+            const isEuropean = type === 'european';
+            const numbers = isEuropean ? europeanNumbers : americanNumbers;
+            const angle = isEuropean ? 360 / 37 : 360 / 38;
+            const displayNum = isEuropean ? winningNum : americanDisplay(winningNum);
+            const index = numbers.indexOf(winningNum);
+            const extraSpins = 360 * (5 + Math.random() * 3);
+            const degree = (index * angle) + extraSpins;
+
+            const wheel = document.getElementById('wheel');
+            const ballTrack = wheel.querySelector('.ballTrack');
+            const playBtn = document.getElementById('playBtn');
+            playBtn.disabled = true;
+
+            wheel.style.animation = 'wheelRotate 5s linear infinite';
+            ballTrack.style.animation = 'ballRotate 1s linear infinite';
+
+            setTimeout(() => {
+                ballTrack.style.animation = 'ballRotate 2s linear infinite';
+            }, 2000);
+
+            const style = document.createElement('style');
+            style.type = 'text/css';
+            style.innerText = `@keyframes ballStop { from { transform: rotate(0deg); } to { transform: rotate(-${degree}deg); } }`;
+            document.head.appendChild(style);
+
+            setTimeout(() => {
+                ballTrack.style.animation = `ballStop 4s ease-out`;
+            }, 5000);
+
+            setTimeout(() => {
+                ballTrack.style.transform = `rotate(-${degree}deg)`;
+                ballTrack.style.animation = 'none';
+            }, 9000);
+
+            setTimeout(() => {
+                wheel.style.animation = 'none';
+                document.head.removeChild(style);
+                playBtn.disabled = false;
+
+                const winAmount = winningNum === playerBet ? bet * 35 : 0;
+                const grossWin = winningNum === playerBet ? bet * 36 : 0;
+                const msg = winningNum === playerBet 
+                    ? `<span class="win">¡Ganaste! Número: ${displayNum}. Ganancia: +${winAmount} €</span>`
+                    : `<span class="loss">Perdiste. Número: ${displayNum}</span>`;
+                callback(grossWin, msg);
+            }, 10000);
+        }
+
+        // Funciones para otros juegos
+        function rollDice(bet, callback) {
+            dice1.classList.add('rolling');
+            dice2.classList.add('rolling');
+            const playBtn = document.getElementById('playBtn');
+            playBtn.disabled = true;
+
+            const dice1Val = Math.floor(Math.random() * 6) + 1;
+            const dice2Val = Math.floor(Math.random() * 6) + 1;
+            const total = dice1Val + dice2Val;
+
+            setTimeout(() => {
+                dice1.dataset.face = dice1Val;
+                dice2.dataset.face = dice2Val;
+                dice1.classList.remove('rolling');
+                dice2.classList.remove('rolling');
+                playBtn.disabled = false;
+
+                let grossWin, msg;
+                if (total === 7 || total === 11) { // Win on pass line
+                    grossWin = bet * 2;
+                    msg = `<span class="win">¡Ganaste! Dados: ${dice1Val} + ${dice2Val} = ${total} (Pago 1:1)</span>`;
+                } else {
+                    grossWin = 0;
+                    msg = `<span class="loss">Perdiste. Dados: ${dice1Val} + ${dice2Val} = ${total}</span>`;
+                }
+                callback(grossWin, msg);
+            }, 3000);
+        }
+
+        function updateBalance() {
+            document.getElementById('balance').textContent = balance.toFixed(2);
+        }
+
+        function updateGameInfo() {
+            const selectValue = document.getElementById('gameSelect').value;
+            currentGameKey = selectValue;
+            const game = games[selectValue];
+            document.getElementById('gameName').textContent = game.name;
+            document.getElementById('houseEdge').textContent = (game.houseEdge * 100).toFixed(2);
+            updateVisual(selectValue);
+        }
+
+        function updateVisual(gameKey) {
+            const visualDiv = document.getElementById('gameVisual');
+            visualDiv.innerHTML = '';
+            const game = games[gameKey];
+            if (game.visual.startsWith('roulette')) {
+                const type = gameKey === 'ruleta-europea' ? 'european' : 'american';
+                const numbers = type === 'european' ? europeanNumbers : americanNumbers;
+                const angle = type === 'european' ? 360 / 37 : 360 / 38;
+                buildRouletteWheel(visualDiv, numbers, angle, type);
+            } else if (game.visual === 'slots') {
+                visualDiv.innerHTML = `
+                    <div class="slot-reels">
+                        <div class="reel"><div class="reel-symbols"><div class="reel-symbol">1</div><div class="reel-symbol">2</div><div class="reel-symbol">3</div><div class="reel-symbol">4</div><div class="reel-symbol">5</div><div class="reel-symbol">6</div><div class="reel-symbol">7</div><div class="reel-symbol">8</div><div class="reel-symbol">9</div><div class="reel-symbol">0</div></div></div>
+                        <div class="reel"><div class="reel-symbols"><div class="reel-symbol">1</div><div class="reel-symbol">2</div><div class="reel-symbol">3</div><div class="reel-symbol">4</div><div class="reel-symbol">5</div><div class="reel-symbol">6</div><div class="reel-symbol">7</div><div class="reel-symbol">8</div><div class="reel-symbol">9</div><div class="reel-symbol">0</div></div></div>
+                        <div class="reel"><div class="reel-symbols"><div class="reel-symbol">1</div><div class="reel-symbol">2</div><div class="reel-symbol">3</div><div class="reel-symbol">4</div><div class="reel-symbol">5</div><div class="reel-symbol">6</div><div class="reel-symbol">7</div><div class="reel-symbol">8</div><div class="reel-symbol">9</div><div class="reel-symbol">0</div></div></div>
+                    </div>
+                `;
+            } else if (game.visual === 'blackjack' || game.visual === 'baccarat') {
+                visualDiv.innerHTML = `
+                    <div class="card-container">
+                        <div class="flip-card">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front">?</div>
+                                <div class="flip-card-back">A♠</div>
+                            </div>
+                        </div>
+                        <div class="flip-card">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front">?</div>
+                                <div class="flip-card-back">10♥</div>
+                            </div>
+                        </div>
+                        <span>vs</span>
+                        <div class="flip-card">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front">?</div>
+                                <div class="flip-card-back">K♦</div>
+                            </div>
+                        </div>
+                        <div class="flip-card">
+                            <div class="flip-card-inner">
+                                <div class="flip-card-front">?</div>
+                                <div class="flip-card-back">9♣</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (game.visual === 'craps') {
+                visualDiv.innerHTML = `
+                    <div style="display: flex; justify-content: center; gap: 20px;">
+                        <div class="dice-container">
+                            <div class="dice" id="dice-1" data-face="1">
+                                <div class="dice-face" data-face="1"><span class="dot"></span></div>
+                                <div class="dice-face" data-face="2"><span class="dot"></span><span class="dot"></span></div>
+                                <div class="dice-face" data-face="3"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                                <div class="dice-face" data-face="4"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                                <div class="dice-face" data-face="5"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                                <div class="dice-face" data-face="6"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                            </div>
+                        </div>
+                        <div class="dice-container">
+                            <div class="dice" id="dice-2" data-face="1">
+                                <div class="dice-face" data-face="1"><span class="dot"></span></div>
+                                <div class="dice-face" data-face="2"><span class="dot"></span><span class="dot"></span></div>
+                                <div class="dice-face" data-face="3"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                                <div class="dice-face" data-face="4"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                                <div class="dice-face" data-face="5"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                                <div class="dice-face" data-face="6"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                dice1 = document.getElementById('dice-1');
+                dice2 = document.getElementById('dice-2');
+            } else if (game.visual === 'keno') {
+                visualDiv.innerHTML = `
+                    <div class="keno-draw" id="kenoDraw" style="--num: 0;">0</div>
+                    <p>Número sorteado animado</p>
+                `;
+            }
+        }
+
+        function playGame() {
+            const game = games[currentGameKey];
+            const bet = parseFloat(document.getElementById('betAmount').value);
+            const resultDiv = document.getElementById('result');
+
+            if (isNaN(bet) || bet > balance || bet <= 0) {
+                resultDiv.innerHTML = '<span class="loss">¡Apuesta inválida! Saldo insuficiente.</span>';
+                return;
+            }
+
+            balance -= bet;
+            resultDiv.innerHTML = '¡Jugando...!';
+            updateBalance();
+
+            game.play(bet, (grossWin, msg) => {
+                balance += grossWin;
+                resultDiv.innerHTML = msg;
+                updateBalance();
+
+                if (balance <= 0) {
+                    resultDiv.innerHTML += '<br><span class="loss">¡Te quedaste sin saldo! Reinicia para jugar de nuevo.</span>';
+                }
+            });
+        }
+
+        function resetGame() {
+            balance = 1000;
+            updateBalance();
+            document.getElementById('result').innerHTML = '';
+            document.getElementById('betAmount').value = 10;
+            document.getElementById('playBtn').disabled = false;
+            // Reset visuals
+            const wheel = document.getElementById('wheel');
+            if (wheel) {
+                wheel.style.animation = 'none';
+                wheel.style.transform = 'rotate(0deg)';
+                const ballTrack = wheel.querySelector('.ballTrack');
+                if (ballTrack) {
+                    ballTrack.style.animation = 'none';
+                    ballTrack.style.transform = 'rotate(0deg)';
+                }
+            }
+            const cards = document.querySelectorAll('.flip-card');
+            cards.forEach(card => card.classList.remove('flipped'));
+            const reels = document.querySelectorAll('.reel');
+            reels.forEach(reel => reel.classList.remove('spinning'));
+            if (dice1) dice1.classList.remove('rolling');
+            if (dice2) dice2.classList.remove('rolling');
+            const drawEl = document.getElementById('kenoDraw');
+            if (drawEl) drawEl.style.setProperty('--num', 0);
+        }
+
+        updateBalance();
+        updateGameInfo();
+    </script>
+     <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie Clicker - Versión Simple</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        #points {
+            font-size: 48px;
+            color: #333;
+            margin: 20px 0;
+        }
+        #clickButton {
+            font-size: 24px;
+            padding: 15px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        #clickButton:hover {
+            background-color: #45a049;
+        }
+        .upgrade {
+            font-size: 16px;
+            padding: 8px 16px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 3px;
+            display: inline-block;
+            width: 300px;
+        }
+        .upgrade:hover {
+            background-color: #0b7dda;
+        }
+        .upgrade:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #autoPoints {
+            font-size: 20px;
+            color: #666;
+            margin: 10px 0;
+        }
+        .upgrades-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cookie Clicker - Versión Simple</h1>
+    <p>Haz clic en la galleta para ganar cookies. ¡Luego compra edificios que generen cookies automáticamente!</p>
+    
+    <div id="points">0 cookies</div>
+    <button id="clickButton">¡Clic para +1 cookie!</button>
+    <div id="autoPoints">Cookies automáticos por segundo: 0</div>
+    
+    <h2>Edificios (Mejoras)</h2>
+    <div class="upgrades-container">
+        <button class="upgrade" id="upgrade1" onclick="buyUpgrade(1)">Cursor (Costo: 15) - Nivel: 0</button><br>
+        <button class="upgrade" id="upgrade2" onclick="buyUpgrade(2)">Abuela (Costo: 100) - Nivel: 0</button><br>
+        <button class="upgrade" id="upgrade3" onclick="buyUpgrade(3)">Granja (Costo: 1,100) - Nivel: 0</button><br>
+        <button class="upgrade" id="upgrade4" onclick="buyUpgrade(4)">Mina (Costo: 12,000) - Nivel: 0</button><br>
+        <button class="upgrade" id="upgrade5" onclick="buyUpgrade(5)">Fábrica (Costo: 130,000) - Nivel: 0</button><br>
+        <button class="upgrade" id="upgrade6" onclick="buyUpgrade(6)">Banco (Costo: 1,400,000) - Nivel: 0</button><br>
+        <button class="upgrade" id="upgrade7" onclick="buyUpgrade(7)">Templo (Costo: 20,000,000) - Nivel: 0</button>
+    </div>
+
+    <script>
+        let points = 0;
+        let autoRate = 0;
+        let upgrades = [0, 0, 0, 0, 0, 0, 0]; // Niveles de cada edificio
+        let baseCosts = [15, 100, 1100, 12000, 130000, 1400000, 20000000]; // Costos base
+        let rates = [0.1, 1, 8, 47, 260, 1400, 7800]; // Cookies por segundo por nivel
+        let multiplier = 1.15; // Multiplicador de costo por nivel (para dificultad)
+        let names = ['Cursor', 'Abuela', 'Granja', 'Mina', 'Fábrica', 'Banco', 'Templo'];
+
+        const pointsDisplay = document.getElementById('points');
+        const autoDisplay = document.getElementById('autoPoints');
+        const clickButton = document.getElementById('clickButton');
+
+        function updateDisplay() {
+            pointsDisplay.textContent = Math.floor(points) + ' cookies';
+            autoDisplay.textContent = `Cookies automáticos por segundo: ${autoRate.toFixed(1)}`;
+            
+            // Actualizar botones de edificios
+            for (let i = 0; i < 7; i++) {
+                const btn = document.getElementById(`upgrade${i+1}`);
+                const level = upgrades[i];
+                const cost = baseCosts[i] * Math.pow(multiplier, level);
+                btn.textContent = `${names[i]} (Costo: ${Math.floor(cost).toLocaleString()}) - Nivel: ${level}`;
+                btn.disabled = points < cost;
+            }
+        }
+
+        clickButton.addEventListener('click', () => {
+            points += 1;
+            updateDisplay();
+        });
+
+        function buyUpgrade(index) {
+            const i = index - 1;
+            const cost = baseCosts[i] * Math.pow(multiplier, upgrades[i]);
+            if (points >= cost) {
+                points -= cost;
+                upgrades[i]++;
+                autoRate += rates[i];
+                updateDisplay();
+            }
+        }
+
+        // Generador automático de cookies
+        setInterval(() => {
+            points += autoRate / 10; // Actualiza 10 veces por segundo para suavidad
+            updateDisplay();
+        }, 100);
+
+        updateDisplay(); // Inicial
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

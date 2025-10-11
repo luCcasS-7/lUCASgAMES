@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Entrevista de Trabajo Absurda</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 500px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #e3f2fd;
+            text-align: right;
+        }
+        .interviewer-message {
+            background-color: #f5f5f5;
+            text-align: left;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .fired {
+            color: red;
+        }
+        .hired {
+            color: green;
+        }
+        .restart-btn {
+            background-color: #28a745;
+            margin-top: 10px;
+        }
+        .restart-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simulador de Entrevista de Trabajo: ¡No te Despidan Antes de Empezar!</h1>
+    <p>En esta simulación absurda, eres el candidato. El entrevistador te hará preguntas ridículas. Responde de manera realista y profesional para no ser "despedido" inmediatamente. ¡Sobrevive 5 rondas para ser contratado! (Pero a veces fallarás... ¡es la vida!)</p>
+    
+    <div class="chat-container" id="chatContainer">
+        <div class="message interviewer-message">
+            <strong>Entrevistador:</strong> Bienvenido a la entrevista para el puesto de Gerente de Patos Voladores. ¿Por qué crees que un pingüino podría ser un buen candidato para este rol?
+        </div>
+    </div>
+    
+    <div class="input-area">
+        <input type="text" id="userInput" placeholder="Escribe tu respuesta realista aquí..." onkeypress="if(event.key==='Enter') sendMessage();">
+        <button onclick="sendMessage()">Enviar</button>
+    </div>
+    
+    <div class="status" id="status">Ronda 1/5 - ¡Sobrevive!</div>
+    <button id="restartBtn" class="restart-btn" onclick="restartGame()" style="display: none;">Volver a Jugar</button>
+
+    <script>
+        // Pool más grande de preguntas para evitar repeticiones
+        const questionPool = [
+            "¿Por qué crees que un pingüino podría ser un buen candidato para este rol?",
+            "Si tuvieras que motivar a un equipo de elefantes para bailar ballet, ¿qué canción elegirías y por qué?",
+            "Imagina que el café de la oficina se ha rebelado. ¿Cómo negociarías la paz?",
+            "Si pudieras reemplazar el ascensor con un animal, ¿cuál sería y cómo manejarías las quejas de los empleados?",
+            "¿Qué superpoder inútil te gustaría tener para mejorar la productividad en la oficina?",
+            "Si los clips de papel formaran un sindicato, ¿cómo los liderarías en una huelga?",
+            "¿Por qué un unicornio sería un mal jefe y cómo lo motivarías?",
+            "Imagina que las computadoras de la oficina empiezan a soñar. ¿Qué terapia les recomendarías?",
+            "Si tuvieras que organizar una fiesta para zombis corporativos, ¿qué tema elegirías?",
+            "Cómo convencerías a un dragón de que done su tesoro a la campaña de reciclaje de la empresa?",
+            "¿Qué harías si el reloj de la oficina empieza a viajar en el tiempo?",
+            "¿Por qué los gatos son expertos en gestión de proyectos y cómo los contratarías?",
+            "Si las sillas de la oficina se rebelan contra los humanos, ¿cómo restaurarías el orden?",
+            "¿Qué receta mágica usarías para convertir reuniones aburridas en fiestas épicas?",
+            "Imagina que los emails se convierten en seres vivos. ¿Cómo los educarías en etiqueta?",
+            "¿Por qué un fantasma sería ideal para el puesto de auditor financiero?",
+            "Si pudieras comunicarte con las plantas de la oficina, ¿qué secretos les pedirías?",
+            "¿Cómo manejarías un conflicto entre el equipo de marketing y los robots aspiradores?",
+            "Si el presupuesto de la empresa se evapora, ¿qué hechizo lanzarías para recuperarlo?",
+            "¿Por qué un pulpo multitarea sería el CEO perfecto?"
+        ];
+
+        let currentQuestions = [];
+        let currentRound = 0;
+        let chatContainer = document.getElementById('chatContainer');
+        let status = document.getElementById('status');
+        let userInput = document.getElementById('userInput');
+        let restartBtn = document.getElementById('restartBtn');
+
+        // Respuestas positivas y negativas
+        const passResponses = [
+            "Interesante perspectiva. Pasemos a la siguiente pregunta.",
+            "¡Ja! Me convence. Sigamos.",
+            "Astuto. Aprobado por ahora.",
+            "Creativo. Hmm, continuemos.",
+            "Bien hecho.",
+            "Ingenioso. Veremos.",
+            "Hilarante. Continúa.",
+            "Original. Bien.",
+            "Aprobado. Siguiente.",
+            "Astuto. Pasemos.",
+            "Creativo. Ok.",
+            "Me gusta. Sigamos.",
+            "Solución sólida. Bien.",
+            "Genial. Continúa.",
+            "Educativo. Aprobado.",
+            "Lógico. Siguiente.",
+            "Intrigante. Bien.",
+            "Manejado. Ok.",
+            "Mágico. Pasemos.",
+            "Perfecta. Fin."
+        ];
+
+        const failResponses = [
+            "Eso no me convence en absoluto. ¡Estás despedido antes de empezar!",
+            "¡Qué decepción! No encajas aquí. Despedido.",
+            "Respuesta pobre. Fuera de la empresa... antes de entrar.",
+            "No, eso no funciona. ¡Despido inmediato!",
+            "Terrible idea. No pasas esta ronda. Despedido.",
+            "Me dejas perplejo... en el mal sentido. Adiós.",
+            "Falta creatividad. Despedido.",
+            "No apruebo. Sal de mi oficina.",
+            "Eso fue un fallo épico. Contrato anulado.",
+            "¡No! Despedido al instante."
+        ];
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function initGame() {
+            // Seleccionar 5 preguntas únicas al azar del pool
+            currentQuestions = shuffleArray([...questionPool]).slice(0, 5);
+            currentRound = 0;
+            chatContainer.innerHTML = '<div class="message interviewer-message"><strong>Entrevistador:</strong> Bienvenido a la entrevista para el puesto de Gerente de Patos Voladores. ' + currentQuestions[0] + '</div>';
+            status.textContent = 'Ronda 1/5 - ¡Sobrevive!';
+            status.className = 'status';
+            userInput.disabled = false;
+            userInput.value = '';
+            userInput.focus();
+            document.querySelector('button[onclick="sendMessage()"]').disabled = false;
+            restartBtn.style.display = 'none';
+        }
+
+        function sendMessage() {
+            const input = userInput.value.trim();
+            if (!input) return;
+
+            // Añadir mensaje del usuario
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user-message';
+            userMsg.innerHTML = '<strong>Tú:</strong> ' + input;
+            chatContainer.appendChild(userMsg);
+            userInput.value = '';
+
+            // Scroll al fondo
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Decidir si pasa o falla (80% chance de pasar, para que no siempre gane)
+            const passChance = 0.8;
+            const passed = Math.random() < passChance;
+
+            // Simular respuesta del entrevistador
+            setTimeout(() => {
+                let response;
+                if (passed) {
+                    response = passResponses[Math.floor(Math.random() * passResponses.length)];
+                } else {
+                    response = failResponses[Math.floor(Math.random() * failResponses.length)];
+                }
+                const interviewerMsg = document.createElement('div');
+                interviewerMsg.className = 'message interviewer-message';
+                interviewerMsg.innerHTML = '<strong>Entrevistador:</strong> ' + response;
+                chatContainer.appendChild(interviewerMsg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                if (!passed) {
+                    // Falló
+                    status.textContent = '¡Despedido! Ronda ' + (currentRound + 1) + '/5';
+                    status.className = 'status fired';
+                    userInput.disabled = true;
+                    document.querySelector('button[onclick="sendMessage()"]').disabled = true;
+                    restartBtn.style.display = 'block';
+                } else {
+                    // Pasó, siguiente ronda
+                    currentRound++;
+                    if (currentRound < currentQuestions.length) {
+                        setTimeout(() => {
+                            const nextQuestion = document.createElement('div');
+                            nextQuestion.className = 'message interviewer-message';
+                            nextQuestion.innerHTML = '<strong>Entrevistador:</strong> ' + currentQuestions[currentRound];
+                            chatContainer.appendChild(nextQuestion);
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                            status.textContent = 'Ronda ' + (currentRound + 1) + '/5 - ¡Sobrevive!';
+                        }, 1000);
+                    } else {
+                        // Completó todas las rondas
+                        status.textContent = '¡Felicidades! Has sido contratado... ¡esta vez sí! 🎉';
+                        status.className = 'status hired';
+                        userInput.disabled = true;
+                        document.querySelector('button[onclick="sendMessage()"]').disabled = true;
+                        restartBtn.style.display = 'block';
+                    }
+                }
+            }, 1500);
+        }
+
+        function restartGame() {
+            initGame();
+        }
+
+        // Inicializar el juego al cargar
+        initGame();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

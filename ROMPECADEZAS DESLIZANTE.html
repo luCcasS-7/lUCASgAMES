@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rompecabezas Deslizante (15 Puzzle)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .game-container {
+            text-align: center;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-template-rows: repeat(4, 100px);
+            gap: 2px;
+            margin: 20px auto;
+            background-color: #333;
+            padding: 2px;
+        }
+        .cell {
+            background-color: white;
+            font-size: 1.5em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            border-radius: 4px;
+        }
+        .cell:hover {
+            background-color: #f9f9f9;
+        }
+        .cell.blank {
+            background-color: #333;
+            cursor: default;
+        }
+        .status {
+            font-size: 1.5em;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #resetBtn {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #resetBtn:hover {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Rompecabezas Deslizante (15 Puzzle)</h1>
+        <div class="status" id="status">¡Mueve las piezas para ordenar del 1 al 15!</div>
+        <div class="board" id="board"></div>
+        <button id="resetBtn">Reiniciar Juego</button>
+    </div>
+
+    <script>
+        let board = [
+            [1, 2, 3, 4],
+            [5, 6, 7, 8],
+            [9, 10, 11, 12],
+            [13, 14, 15, 0]
+        ]; // 0 representa el espacio vacío
+        const statusEl = document.getElementById('status');
+        const boardEl = document.getElementById('board');
+        const resetBtn = document.getElementById('resetBtn');
+        let gameWon = false;
+
+        const directions = [
+            { row: -1, col: 0 }, // arriba
+            { row: 1, col: 0 },  // abajo
+            { row: 0, col: -1 }, // izquierda
+            { row: 0, col: 1 }   // derecha
+        ];
+
+        function findBlank() {
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 4; col++) {
+                    if (board[row][col] === 0) {
+                        return { row, col };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function isAdjacent(clickedRow, clickedCol, blankRow, blankCol) {
+            return Math.abs(clickedRow - blankRow) + Math.abs(clickedCol - blankCol) === 1;
+        }
+
+        function swap(row, col, blankRow, blankCol) {
+            [board[row][col], board[blankRow][blankCol]] = [board[blankRow][blankCol], board[row][col]];
+        }
+
+        function checkWin() {
+            let expected = 1;
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 4; col++) {
+                    if (board[row][col] !== 0 && board[row][col] !== expected) {
+                        return false;
+                    }
+                    expected++;
+                }
+            }
+            return true;
+        }
+
+        function updateBoard() {
+            boardEl.innerHTML = '';
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 4; col++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (board[row][col] === 0) {
+                        cell.classList.add('blank');
+                        cell.textContent = '';
+                    } else {
+                        cell.textContent = board[row][col];
+                    }
+                    cell.addEventListener('click', () => handleCellClick(row, col));
+                    boardEl.appendChild(cell);
+                }
+            }
+            if (checkWin()) {
+                statusEl.textContent = '¡Felicidades! ¡Has ganado!';
+                gameWon = true;
+            }
+        }
+
+        function handleCellClick(row, col) {
+            if (gameWon || board[row][col] === 0) return;
+
+            const blank = findBlank();
+            if (!isAdjacent(row, col, blank.row, blank.col)) return;
+
+            swap(row, col, blank.row, blank.col);
+            updateBoard();
+        }
+
+        function shuffleBoard() {
+            // Mezcla simple pero asegura que sea solvable (paridad)
+            let flat = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0];
+            for (let i = flat.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [flat[i], flat[j]] = [flat[j], flat[i]];
+            }
+            // Verificar paridad para solvabilidad (número de inversiones par)
+            let inversions = 0;
+            for (let i = 0; i < flat.length - 1; i++) {
+                for (let j = i + 1; j < flat.length; j++) {
+                    if (flat[i] > flat[j] && flat[i] !== 0 && flat[j] !== 0) {
+                        inversions++;
+                    }
+                }
+            }
+            if (inversions % 2 !== 0) {
+                // Si impar, intercambia dos elementos para hacerlo par
+                const idx1 = flat.indexOf(14);
+                const idx2 = flat.indexOf(15);
+                [flat[idx1], flat[idx2]] = [flat[idx2], flat[idx1]];
+            }
+            // Reconstruir 2D array
+            board = [];
+            for (let i = 0; i < 4; i++) {
+                board.push(flat.slice(i*4, (i+1)*4));
+            }
+            gameWon = false;
+            statusEl.textContent = '¡Mueve las piezas para ordenar del 1 al 15!';
+            updateBoard();
+        }
+
+        function resetGame() {
+            shuffleBoard();
+        }
+
+        resetBtn.addEventListener('click', resetGame);
+
+        // Inicializar
+        shuffleBoard();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NO QUIERO BAJAR AL GIMNASIO</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom, #87CEEB, #98FB98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial Black', Arial, sans-serif;
+            touch-action: none;
+            overflow: hidden;
+        }
+        canvas {
+            border: 3px solid #333;
+            background: linear-gradient(to bottom, #90EE90, #228B22);
+            touch-action: none;
+            max-width: 100vw;
+            max-height: 100vh;
+            display: block;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #333;
+            font-size: 16px;
+            z-index: 10;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+            z-index: 10;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        #trophyRoad {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(to right, #ffcc00, #ffd700);
+            border: 3px solid #333;
+            border-radius: 15px;
+            padding: 10px;
+            max-width: 95%;
+            z-index: 10;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        #trophyRoad canvas {
+            border: none;
+            width: 100%;
+            height: 120px;
+        }
+        #startButton {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 28px;
+            background: linear-gradient(#4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            z-index: 10;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-weight: bold;
+        }
+        #startButton:active {
+            background: linear-gradient(#45a049, #4CAF50);
+            transform: translate(-50%, -50%) scale(0.95);
+        }
+        #pauseButton {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #FF9800;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 10;
+            display: none;
+        }
+        #pauseButton:active {
+            background: #F57C00;
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: none;
+            z-index: 10;
+        }
+        #joystick {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+        }
+        #joystick-knob {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #4CAF50;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s;
+        }
+        #attackButton {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            padding: 20px;
+            font-size: 24px;
+            background: linear-gradient(#FF5722, #E64A19);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        #attackButton:active {
+            background: linear-gradient(#E64A19, #FF5722);
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div id="instructions">
+        <strong>¡HUYE DEL GYM!</strong><br>
+        Usa el joystick para moverte. ¡Ataca a tu padre con el botón! ¡Sobrevive 2 min!
+    </div>
+    <div id="score" style="display: none;">Tiempo: 2:00 | Trofeos: 0/5 | Vida Padre: 100 | Total: 0</div>
+    <button id="pauseButton" onclick="togglePause()">⏸️ Pausa</button>
+    <div id="trophyRoad">
+        <canvas id="roadCanvas" width="800" height="120"></canvas>
+    </div>
+    <button id="startButton" onclick="startGame()">¡EMPEZAR LA HUÍDA!</button>
+    <div id="controls">
+        <div id="joystick">
+            <div id="joystick-knob"></div>
+        </div>
+        <button id="attackButton" onclick="attack()">⚔️ ATACAR</button>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const gameCanvas = document.getElementById('gameCanvas');
+        const ctx = gameCanvas.getContext('2d');
+        const scoreDiv = document.getElementById('score');
+        const roadCanvas = document.getElementById('roadCanvas');
+        const roadCtx = roadCanvas.getContext('2d');
+        const trophyRoadDiv = document.getElementById('trophyRoad');
+        const startButton = document.getElementById('startButton');
+        const pauseButton = document.getElementById('pauseButton');
+        const controlsDiv = document.getElementById('controls');
+        const joystick = document.getElementById('joystick');
+        const knob = document.getElementById('joystick-knob');
+        const attackButton = document.getElementById('attackButton');
+
+        let isPaused = false;
+
+        function togglePause() {
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? '▶️ Reanudar' : '⏸️ Pausa';
+        }
+
+        // Joystick logic
+        let joystickActive = false;
+        let joystickCenter = { x: 50, y: 50 };
+        let joystickPos = { x: 0, y: 0 };
+        let joystickRadius = 50;
+
+        joystick.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            joystickActive = true;
+            updateJoystick(e.touches[0]);
+        });
+        joystick.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (joystickActive) updateJoystick(e.touches[0]);
+        });
+        joystick.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            joystickActive = false;
+            joystickPos = { x: 0, y: 0 };
+            knob.style.transform = 'translate(-50%, -50%)';
+        });
+
+        function updateJoystick(touch) {
+            const rect = joystick.getBoundingClientRect();
+            const centerX = rect.left + joystickRadius;
+            const centerY = rect.top + joystickRadius;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > joystickRadius) {
+                dx = (dx / dist) * joystickRadius;
+                dy = (dy / dist) * joystickRadius;
+            }
+            joystickPos = { x: dx / joystickRadius, y: dy / joystickRadius };
+            knob.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`;
+        }
+
+        // Attack function
+        function attack() {
+            if (gameState !== 'playing' || isPaused) return;
+            // Disparar proyectil hacia padre
+            const dx = chaser.x - player.x;
+            const dy = chaser.y - player.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 0) {
+                projectiles.push({
+                    x: player.x + player.width / 2,
+                    y: player.y + player.height / 2,
+                    vx: (dx / dist) * 8,
+                    vy: (dy / dist) * 8,
+                    size: 5,
+                    color: 'red'
+                });
+                playSound(1200, 0.1);
+                vibrate(100);
+            }
+        }
+
+        // Audio & Vibrate
+        let audioCtx;
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+        function playSound(frequency, duration, type = 'sine') {
+            initAudio();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        function vibrate(duration) {
+            if (navigator.vibrate) navigator.vibrate(duration);
+        }
+
+        // Estados
+        let gameState = 'menu';
+
+        // Jugador
+        const player = {
+            x: 100,
+            y: 100,
+            width: 25,
+            height: 40,
+            baseSpeed: 7,
+            color: '#4A90E2',
+            shirtColor: '#FF6B6B',
+            animationFrame: 0,
+            combo: 0
+        };
+
+        // Padre con vida
+        const chaser = {
+            x: 700,
+            y: 500,
+            width: 35,
+            height: 50,
+            baseSpeed: 3,
+            color: '#2E7D32',
+            shirtColor: '#FF9800',
+            health: 100,
+            maxHealth: 100,
+            animationFrame: 0
+        };
+
+        let extraChasers = [];
+        const boss = {
+            x: 400,
+            y: 300,
+            width: 50,
+            height: 60,
+            speed: 2.5,
+            color: '#1B5E20',
+            shirtColor: '#F57C00',
+            health: 200,
+            maxHealth: 200,
+            throwing: false
+        };
+
+        let obstacles = [];
+        let projectiles = []; // Proyectiles de ataque
+        let totalTrophies = parseInt(localStorage.getItem('gymAvoiderTotalTrophies')) || 0;
+        let currentTrophies = 0;
+        let startTime = Date.now();
+        let gameTime = 120000;
+        let difficultyLevel = 1;
+        let effects = [];
+        let powerups = [];
+        let enemies = [];
+        let isBossFight = false;
+        let score = 0;
+        let particles = [];
+        let randomEvents = 0;
+
+        // Touch
+        let touchPos = { x: 0, y: 0 };
+        let isTouching = false;
+        const keys = {};
+
+        // Events
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if ((gameState === 'menu' || gameState === 'gameover') && e.key === ' ') {
+                e.preventDefault();
+                startGame();
+            }
+            if (e.key === 'p' || e.key === 'P') togglePause();
+            if (e.key === 'a' || e.key === 'A') attack();
+        });
+        document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+        gameCanvas.addEventListener('touchstart', handleTouch);
+        gameCanvas.addEventListener('touchmove', handleTouch);
+        gameCanvas.addEventListener('touchend', (e) => { e.preventDefault(); isTouching = false; });
+
+        function handleTouch(e) {
+            e.preventDefault();
+            if (gameState === 'menu' || gameState === 'gameover') {
+                startGame();
+                return;
+            }
+            if (e.touches[0]) {
+                const rect = gameCanvas.getBoundingClientRect();
+                const scaleX = gameCanvas.width / rect.width;
+                const scaleY = gameCanvas.height / rect.height;
+                touchPos.x = (e.touches[0].clientX - rect.left) * scaleX;
+                touchPos.y = (e.touches[0].clientY - rect.top) * scaleY;
+                isTouching = true;
+            }
+        }
+
+        // Dibujar personaje (sin cambios)
+        function drawCharacter(x, y, width, height, color, shirtColor, isRunning = false, isBoss = false, isPlayer = false, health = 100, maxHealth = 100) {
+            const frame = Math.floor(Date.now() / 100) % 4;
+
+            // Cabeza
+            ctx.fillStyle = '#FDBCB4';
+            ctx.beginPath();
+            ctx.ellipse(x + width/2, y + 5, width/3, height/6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#D2691E';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Ojos
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(x + width/2 - 4, y + 8, 2, 0, Math.PI * 2);
+            ctx.arc(x + width/2 + 4, y + 8, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Boca
+            if (isPlayer) {
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(x + width/2, y + 15, 3, 0, Math.PI);
+                ctx.stroke();
+            }
+
+            // Cuerpo
+            ctx.fillStyle = shirtColor;
+            ctx.fillRect(x + width/4, y + height/6, width/2, height/2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + width/4, y + height/6, width/2, height/2);
+
+            // Brazos
+            const armSwing = isRunning ? Math.sin(Date.now() / 200 + frame) * 8 : 0;
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(x + width/2, y + height/6 + 10);
+            ctx.lineTo(x + width/4 + armSwing, y + height/6 + 20);
+            ctx.lineTo(x + width/4 + armSwing, y + height/2);
+            ctx.moveTo(x + width/2, y + height/6 + 10);
+            ctx.lineTo(x + 3*width/4 - armSwing, y + height/6 + 20);
+            ctx.lineTo(x + 3*width/4 - armSwing, y + height/2);
+            ctx.stroke();
+
+            // Piernas
+            const legOffset = isRunning ? Math.sin(Date.now() / 150 + frame) * 5 : 0;
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(x + width/3, y + height/2);
+            ctx.lineTo(x + width/3 + legOffset, y + height);
+            ctx.moveTo(x + 2*width/3, y + height/2);
+            ctx.lineTo(x + 2*width/3 - legOffset, y + height);
+            ctx.stroke();
+
+            // Pesas para boss
+            if (isBoss) {
+                ctx.fillStyle = 'gray';
+                ctx.fillRect(x + width/4 - 10, y + height/6 + 5, 15, 15);
+                ctx.fillRect(x + 3*width/4 + 5, y + height/6 + 5, 15, 15);
+            }
+
+            // Sudor para player
+            if (isPlayer && isRunning) {
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(x + width/2 + i*5 - 5, y + 5, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Barra de vida
+            const barWidth = width;
+            const barHeight = 8;
+            ctx.fillStyle = 'red';
+            ctx.fillRect(x, y - 15, barWidth, barHeight);
+            ctx.fillStyle = 'green';
+            ctx.fillRect(x, y - 15, barWidth * (health / maxHealth), barHeight);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y - 15, barWidth, barHeight);
+        }
+
+        // Partículas (sin cambios)
+        function createParticles(x, y, color, count = 15) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.5) * 12,
+                    life: 40,
+                    color: color,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                p.vx *= 0.97;
+                p.vy *= 0.97;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
+
+        function drawParticles() {
+            for (const p of particles) {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 40;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // Mover jugador con joystick
+        function movePlayer() {
+            if (isPaused) return;
+            let currentSpeed = player.baseSpeed;
+            if (effects.some(e => e.type === 'speed')) currentSpeed *= 2.2;
+
+            let newX = player.x;
+            let newY = player.y;
+
+            // Teclado
+            if (keys['ArrowUp']) newY -= currentSpeed;
+            if (keys['ArrowDown']) newY += currentSpeed;
+            if (keys['ArrowLeft']) newX -= currentSpeed;
+            if (keys['ArrowRight']) newX += currentSpeed;
+
+            // Joystick
+            if (joystickActive) {
+                newX += joystickPos.x * currentSpeed;
+                newY += joystickPos.y * currentSpeed;
+            }
+
+            // Touch (fallback)
+            if (isTouching) {
+                const dx = touchPos.x - player.x;
+                const dy = touchPos.y - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 15) {
+                    newX += (dx / dist) * currentSpeed;
+                    newY += (dy / dist) * currentSpeed;
+                }
+            }
+
+            if (!checkObstacleCollision(newX, newY, player.width, player.height)) {
+                player.x = newX;
+                player.y = newY;
+            }
+
+            player.x = Math.max(0, Math.min(gameCanvas.width - player.width, player.x));
+            player.y = Math.max(0, Math.min(gameCanvas.height - player.height, player.y));
+        }
+
+        // Obstáculos (sin cambios)
+        function spawnObstacle() {
+            const types = [
+                { size: 40, color: '#8B4513', shape: 'rect' },
+                { size: 60, color: '#424242', shape: 'circle' }
+            ];
+            const type = types[Math.floor(Math.random() * types.length)];
+            obstacles.push({
+                x: Math.random() * (gameCanvas.width - type.size),
+                y: Math.random() * (gameCanvas.height - type.size),
+                size: type.size,
+                vx: (Math.random() - 0.5) * 3,
+                vy: (Math.random() - 0.5) * 3,
+                color: type.color,
+                shape: type.shape
+            });
+        }
+
+        function updateObstacles() {
+            for (let obs of obstacles) {
+                obs.x += obs.vx;
+                obs.y += obs.vy;
+                if (obs.x < 0 || obs.x > gameCanvas.width - obs.size) obs.vx *= -1;
+                if (obs.y < 0 || obs.y > gameCanvas.height - obs.size) obs.vy *= -1;
+            }
+            if (obstacles.length < 6 + difficultyLevel * 2 && Math.random() < 0.008) spawnObstacle();
+        }
+
+        function checkObstacleCollision(x, y, w, h) {
+            for (const obs of obstacles) {
+                const dx = x + w/2 - (obs.x + obs.size/2);
+                const dy = y + h/2 - (obs.y + obs.size/2);
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < (w / 2 + obs.size / 2)) {
+                    vibrate(60);
+                    playSound(180, 0.15, 'square');
+                    createParticles(x + w/2, y + h/2, 'brown', 10);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Mover chaser
+        function moveChaser() {
+            if (isPaused) return;
+            let pursuer = isBossFight ? boss : chaser;
+            const dx = player.x - pursuer.x;
+            const dy = player.y - pursuer.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            let currentSpeed = (pursuer.baseSpeed || pursuer.speed) + difficultyLevel * 0.4;
+            if (effects.some(e => e.type === 'slow')) currentSpeed *= 0.25;
+
+            let newX = pursuer.x + (dx / dist) * currentSpeed;
+            let newY = pursuer.y + (dy / dist) * currentSpeed;
+
+            if (!checkObstacleCollision(newX, newY, pursuer.width, pursuer.height)) {
+                pursuer.x = newX;
+                pursuer.y = newY;
+            }
+
+            pursuer.x = Math.max(0, Math.min(gameCanvas.width - pursuer.width, pursuer.x));
+            pursuer.y = Math.max(0, Math.min(gameCanvas.height - pursuer.height, pursuer.y));
+
+            // Extra chasers
+            for (let ec of extraChasers) {
+                const edx = player.x - ec.x;
+                const edy = player.y - ec.y;
+                const edist = Math.sqrt(edx * edx + edy * edy);
+                ec.x += (edx / edist) * ec.speed;
+                ec.y += (edy / edist) * ec.speed;
+                ec.x = Math.max(0, Math.min(gameCanvas.width - ec.width, ec.x));
+                ec.y = Math.max(0, Math.min(gameCanvas.height - ec.height, ec.y));
+            }
+
+            // Boss throwing
+            if (isBossFight && Math.random() < 0.025) {
+                boss.throwing = true;
+                setTimeout(() => { boss.throwing = false; }, 400);
+                enemies.push({
+                    x: boss.x + boss.width / 2,
+                    y: boss.y + boss.height / 2,
+                    vx: (Math.random() - 0.5) * 10 + dx / dist * 4,
+                    vy: (Math.random() - 0.5) * 10 + dy / dist * 4,
+                    size: 15,
+                    color: 'gray'
+                });
+                playSound(120, 0.3);
+                createParticles(boss.x + boss.width/2, boss.y + boss.height/2, 'gray', 8);
+            }
+        }
+
+        // Actualizar enemigos
+        function updateEnemies() {
+            if (isPaused) return;
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const e = enemies[i];
+                e.x += e.vx;
+                e.y += e.vy;
+                e.vy += 0.3;
+
+                if (e.x > gameCanvas.width || e.x < 0 || e.y > gameCanvas.height) {
+                    enemies.splice(i, 1);
+                    continue;
+                }
+
+                const dx = player.x + player.width/2 - e.x;
+                const dy = player.y + player.height/2 - e.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < (player.width / 2 + e.size) && !effects.some(e => e.type === 'invincible')) {
+                    endGame(false);
+                    createParticles(player.x + player.width/2, player.y + player.height/2, 'red', 30);
+                    vibrate(600);
+                }
+            }
+        }
+
+        // Actualizar proyectiles
+        function updateProjectiles() {
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const p = projectiles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < 0 || p.x > gameCanvas.width || p.y < 0 || p.y > gameCanvas.height) {
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+
+                // Colisión con padre
+                let target = isBossFight ? boss : chaser;
+                const dx = target.x + target.width/2 - p.x;
+                const dy = target.y + target.height/2 - p.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < (target.width / 2 + p.size)) {
+                    target.health -= 10;
+                    createParticles(target.x + target.width/2, target.y + target.height/2, 'red', 15);
+                    playSound(300, 0.2);
+                    vibrate(150);
+                    projectiles.splice(i, 1);
+                    if (target.health <= 0) {
+                        if (isBossFight) {
+                            isBossFight = false;
+                            currentTrophies = Math.min(5, currentTrophies + 2);
+                            extraChasers = [];
+                            playSound(1500, 1);
+                        } else {
+                            // Padre derrotado, bonus
+                            currentTrophies = Math.min(5, currentTrophies + 1);
+                            // Respawn padre con vida completa
+                            chaser.health = chaser.maxHealth;
+                            chaser.x = 700;
+                            chaser.y = 500;
+                        }
+                    }
+                    continue;
+                }
+            }
+        }
+
+        // Check powerup collision (sin cambios)
+        function checkPowerupCollision() {
+            if (isPaused) return;
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const pu = powerups[i];
+                const dx = player.x + player.width/2 - pu.x;
+                const dy = player.y + player.height/2 - pu.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < (player.width / 2 + pu.size)) {
+                    let effectType;
+                    switch (pu.type) {
+                        case 'speed': 
+                            effectType = 'speed'; 
+                            playSound(900, 0.25);
+                            player.combo++;
+                            break;
+                        case 'slow': 
+                            effectType = 'slow'; 
+                            playSound(300, 0.25);
+                            break;
+                        case 'invincible': 
+                            effectType = 'invincible'; 
+                            playSound(1200, 0.4);
+                            break;
+                        case 'attack': 
+                            effectType = 'attack'; 
+                            playSound(700, 0.25);
+                            break;
+                        case 'shield': 
+                            effectType = 'shield'; 
+                            playSound(800, 0.3);
+                            break;
+                        case 'jump': 
+                            effectType = 'jump'; 
+                            playSound(1100, 0.2);
+                            player.y -= 50;
+                            break;
+                        case 'magnet': 
+                            effectType = 'magnet'; 
+                            playSound(600, 0.3);
+                            break;
+                        case 'enemy': 
+                            if (!effects.some(e => e.type === 'invincible' || e.type === 'shield')) endGame(false);
+                            playSound(80, 0.6, 'sawtooth');
+                            break;
+                    }
+                    if (effectType) {
+                        effects.push({ type: effectType, endTime: Date.now() + 10000 });
+                        createParticles(pu.x, pu.y, pu.color, 20);
+                        vibrate(150);
+                    }
+                    powerups.splice(i, 1);
+                }
+            }
+
+            if (isBossFight && effects.some(e => e.type === 'attack')) {
+                const bdx = player.x + player.width/2 - boss.x - boss.width/2;
+                const bdy = player.y + player.height/2 - boss.y - boss.height/2;
+                const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+                if (bdist < (player.width / 2 + boss.width / 2)) {
+                    boss.health -= 20;
+                    createParticles(boss.x + boss.width/2, boss.y + boss.height/2, 'red', 40);
+                    playSound(250, 0.5);
+                    vibrate(250);
+                    if (boss.health <= 0) {
+                        isBossFight = false;
+                        currentTrophies = Math.min(5, currentTrophies + 2);
+                        extraChasers = [];
+                        playSound(1500, 1);
+                    }
+                }
+            }
+
+            if (effects.some(e => e.type === 'magnet')) {
+                for (const pu of powerups) {
+                    const dx = player.x + player.width/2 - pu.x;
+                    const dy = player.y + player.height/2 - pu.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 50) {
+                        pu.x += (dx / dist) * 2;
+                        pu.y += (dy / dist) * 2;
+                    }
+                }
+            }
+        }
+
+        // Colisión (actualizada para vida)
+        function checkCollision() {
+            const isInvincible = effects.some(e => e.type === 'invincible');
+            const hasShield = effects.some(e => e.type === 'shield');
+            if (isInvincible || hasShield) return false;
+
+            const pursuer = isBossFight ? boss : chaser;
+            const dx = player.x + player.width/2 - pursuer.x - pursuer.width/2;
+            const dy = player.y + player.height/2 - pursuer.y - pursuer.height/2;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < (player.width / 2 + pursuer.width / 2)) {
+                vibrate(400);
+                playSound(100, 0.6);
+                if (hasShield) {
+                    effects = effects.filter(e => e.type !== 'shield');
+                    createParticles(player.x + player.width/2, player.y + player.height/2, 'blue', 25);
+                } else {
+                    endGame(false);
+                }
+                return true;
+            }
+
+            for (const ec of extraChasers) {
+                const edx = player.x + player.width/2 - ec.x - ec.width/2;
+                const edy = player.y + player.height/2 - ec.y - ec.height/2;
+                const edist = Math.sqrt(edx * edx + edy * edy);
+                if (edist < (player.width / 2 + ec.width / 2)) {
+                    vibrate(400);
+                    playSound(100, 0.6);
+                    if (hasShield) {
+                        effects = effects.filter(e => e.type !== 'shield');
+                    } else {
+                        endGame(false);
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Update score (actualizada para vida padre)
+        function updateScore() {
+            if (isPaused) return;
+            score += 1 + player.combo * 0.2;
+            const elapsed = Date.now() - startTime;
+            const remaining = Math.max(0, Math.floor((gameTime - elapsed) / 1000));
+            const mins = Math.floor(remaining / 60);
+            const secs = remaining % 60;
+
+            if (elapsed >= gameTime) {
+                endGame(true);
+                playSound(1400, 1.5, 'triangle');
+                return;
+            }
+
+            if (score % 600 === 0 && currentTrophies < 5) {
+                currentTrophies++;
+                createParticles(player.x + player.width/2, player.y + player.height/2, '#FFD700', 30);
+                playSound(1100, 0.6);
+                vibrate(300);
+                if (currentTrophies === 5) {
+                    totalTrophies += 5;
+                    localStorage.setItem('gymAvoiderTotalTrophies', totalTrophies);
+                    if (Math.random() < 0.6) {
+                        isBossFight = true;
+                        boss.health = boss.maxHealth + difficultyLevel * 50;
+                        boss.x = gameCanvas.width / 2;
+                        boss.y = gameCanvas.height / 2;
+                        extraChasers = [
+                            { x: 50, y: 50, width: 30, height: 45, speed: 2.2, color: '#E53935', shirtColor: '#FFEB3B', health: 50, maxHealth: 50 },
+                            { x: 750, y: 550, width: 30, height: 45, speed: 2.2, color: '#E53935', shirtColor: '#FFEB3B', health: 50, maxHealth: 50 }
+                        ];
+                    } else {
+                        for (let i = 0; i < 5; i++) spawnPowerup();
+                        playSound(2000, 0.5);
+                    }
+                }
+            }
+
+            if (score % 2500 === 0) {
+                difficultyLevel++;
+                if (Math.random() < 0.5) {
+                    extraChasers.push({
+                        x: Math.random() * gameCanvas.width,
+                        y: Math.random() * gameCanvas.height,
+                        width: 30,
+                        height: 45,
+                        speed: 2 + Math.random(),
+                        color: '#7B1FA2',
+                        shirtColor: '#CE93D8',
+                        health: 50,
+                        maxHealth: 50
+                    });
+                }
+            }
+
+            randomEvents++;
+            if (randomEvents > 1800) {
+                randomEvents = 0;
+                const events = [
+                    () => { for (let i = 0; i < 3; i++) spawnPowerup(); playSound(1800, 0.4); },
+                    () => { effects.push({ type: 'slow', endTime: Date.now() + 5000 }); playSound(400, 0.5); },
+                    () => { effects.push({ type: 'speed', endTime: Date.now() + 3000 }); playSound(1000, 0.3); }
+                ];
+                events[Math.floor(Math.random() * events.length)]();
+            }
+
+            effects = effects.filter(e => Date.now() < e.endTime);
+
+            let fatherHealth = isBossFight ? boss.health : chaser.health;
+            scoreDiv.textContent = `Tiempo: ${mins}:${secs.toString().padStart(2, '0')} | Trofeos: ${currentTrophies}/5 | Combo: ${Math.floor(player.combo)} | Vida Padre: ${Math.floor(fatherHealth)} | Total: ${totalTrophies}`;
+        }
+
+        // Spawn power-up (sin cambios)
+        function spawnPowerup() {
+            const types = ['speed', 'slow', 'invincible', 'attack', 'shield', 'jump', 'magnet', 'enemy'];
+            const colors = { speed: 'yellow', slow: 'blue', invincible: 'gold', attack: 'purple', shield: 'cyan', jump: 'lime', magnet: 'magenta', enemy: 'black' };
+            const icons = { speed: '⚡', slow: '🐌', invincible: '🛡️', attack: '⚔️', shield: '🛡️', jump: '🦘', magnet: '🧲', enemy: '💀' };
+            const type = types[Math.floor(Math.random() * types.length)];
+            powerups.push({
+                x: Math.random() * (gameCanvas.width - 30) + 15,
+                y: Math.random() * (gameCanvas.height - 30) + 15,
+                size: 20,
+                type: type,
+                color: colors[type],
+                icon: icons[type]
+            });
+        }
+
+        // Dibujar menú (sin cambios)
+        function drawMenu() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 52px Arial Black';
+            ctx.textAlign = 'center';
+            ctx.fillText('NO QUIERO BAJAR AL GIMNASIO', gameCanvas.width / 2, gameCanvas.height / 2 - 180);
+
+            ctx.font = 'bold 32px Arial';
+            ctx.fillStyle = '#FFD700';
+            ctx.fillText('¡Edición Móvil Épica!', gameCanvas.width / 2, gameCanvas.height / 2 - 100);
+
+            ctx.font = '22px Arial';
+            ctx.fillStyle = 'white';
+            ctx.fillText('¡Joystick, ataques y vida para tu padre! ¡Diviértete huyendo!', gameCanvas.width / 2, gameCanvas.height / 2 - 40);
+            ctx.fillText(`Trofeos totales: ${totalTrophies} 🏆`, gameCanvas.width / 2, gameCanvas.height / 2 + 10);
+
+            startButton.style.display = 'block';
+
+            drawCharacter(250 + Math.sin(Date.now() / 600) * 20, gameCanvas.height / 2 + 50, 25, 40, '#4A90E2', '#FF6B6B', true, false, true);
+            drawCharacter(550, gameCanvas.height / 2 + 30, 35, 50, '#2E7D32', '#FF9800', false);
+        }
+
+        // Dibujar game over (sin cambios)
+        function drawGameOver(victory) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+            ctx.fillStyle = victory ? '#4CAF50' : '#f44336';
+            ctx.font = 'bold 42px Arial Black';
+            ctx.textAlign = 'center';
+            ctx.fillText(victory ? '¡ESCAPASTE DEL GYM!' : '¡TE AGARRÓ!', gameCanvas.width / 2, gameCanvas.height / 2 - 60);
+
+            ctx.fillStyle = 'white';
+            ctx.font = '26px Arial';
+            ctx.fillText(`Trofeos ganados: ${currentTrophies * 5} 🏆`, gameCanvas.width / 2, gameCanvas.height / 2 + 10);
+            if (!victory && currentTrophies > 0) {
+                totalTrophies = Math.max(0, totalTrophies - 1);
+                localStorage.setItem('gymAvoiderTotalTrophies', totalTrophies);
+                ctx.fillStyle = '#FFD700';
+                ctx.fillText('¡Perdiste 1 trofeo! ¡Entrena para vengarte! 💪', gameCanvas.width / 2, gameCanvas.height / 2 + 50);
+                ctx.fillStyle = 'white';
+            }
+            ctx.fillText(`Total: ${totalTrophies} 🏆`, gameCanvas.width / 2, gameCanvas.height / 2 + 90);
+            ctx.fillText('Toca o ESPACIO para huir de nuevo', gameCanvas.width / 2, gameCanvas.height / 2 + 140);
+
+            startButton.style.display = 'block';
+            startButton.textContent = '¡NUEVA HUÍDA!';
+            pauseButton.style.display = 'none';
+            controlsDiv.style.display = 'none';
+        }
+
+        // Dibujar juego (añadido proyectiles)
+        function draw() {
+            ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+            // Fondo (sin cambios)
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < gameCanvas.height; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(gameCanvas.width, i);
+                ctx.stroke();
+            }
+            ctx.fillStyle = 'rgba(139,69,19,0.2)';
+            for (let i = 0; i < 20; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random() * gameCanvas.width, gameCanvas.height - Math.random() * 100, Math.random() * 50 + 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (gameState === 'menu') {
+                drawMenu();
+                return;
+            }
+
+            if (gameState === 'gameover') {
+                drawGameOver(false);
+                return;
+            }
+
+            if (isPaused) {
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 48px Arial Black';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSADO', gameCanvas.width / 2, gameCanvas.height / 2);
+                return;
+            }
+
+            pauseButton.style.display = 'block';
+            controlsDiv.style.display = 'block';
+
+            // Obstáculos
+            for (const obs of obstacles) {
+                ctx.fillStyle = obs.color;
+                if (obs.shape === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(obs.x + obs.size/2, obs.y + obs.size/2, obs.size/2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(obs.x, obs.y, obs.size, obs.size);
+                }
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Power-ups
+            for (const pu of powerups) {
+                ctx.save();
+                ctx.translate(pu.x, pu.y);
+                ctx.rotate(Date.now() / 800 + Math.sin(Date.now() / 500) * 0.1);
+                ctx.fillStyle = pu.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, pu.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(pu.icon, 0, 6);
+                ctx.restore();
+                ctx.shadowColor = pu.color;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(pu.x, pu.y, pu.size + 5, 0, Math.PI * 2);
+                ctx.strokeStyle = pu.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+
+            // Enemigos
+            for (const e of enemies) {
+                ctx.fillStyle = e.color;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // Proyectiles
+            for (const p of projectiles) {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Extra chasers
+            for (const ec of extraChasers) {
+                drawCharacter(ec.x, ec.y, ec.width, ec.height, ec.color, ec.shirtColor, true, false, false, ec.health, ec.maxHealth);
+            }
+
+            // Jugador
+            drawCharacter(player.x, player.y, player.width, player.height, player.color, player.shirtColor, true, false, true);
+            if (player.combo > 8) {
+                ctx.fillStyle = 'rgba(255,215,0,0.8)';
+                ctx.font = 'bold 24px Arial Black';
+                ctx.textAlign = 'center';
+                ctx.fillText(`¡COMBO LOCO x${Math.floor(player.combo)}! 🔥`, player.x + player.width/2, player.y - 20);
+            }
+
+            // Chaser o boss con vida
+            if (isBossFight) {
+                drawCharacter(boss.x, boss.y, boss.width, boss.height, boss.color, boss.shirtColor, false, true, false, boss.health, boss.maxHealth);
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.fillText('JEFE PADRE', boss.x + boss.width/2, boss.y - 25);
+            } else {
+                drawCharacter(chaser.x, chaser.y, chaser.width, chaser.height, chaser.color, chaser.shirtColor, false, false, false, chaser.health, chaser.maxHealth);
+            }
+
+            // Efectos visuales (sin cambios)
+            if (effects.some(e => e.type === 'invincible')) {
+                ctx.strokeStyle = 'gold';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.arc(player.x + player.width/2, player.y + player.height/2, player.width * 1.2, 0, Math.PI * 2);
+                ctx.stroke();
+                createParticles(player.x + player.width/2, player.y + player.height/2, 'gold', 2);
+            }
+            if (effects.some(e => e.type === 'speed')) {
+                ctx.strokeStyle = 'yellow';
+                ctx.lineWidth = 3;
+                const now = Date.now();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2 + now / 400;
+                    ctx.beginPath();
+                    ctx.moveTo(player.x + player.width/2, player.y + player.height/2);
+                    ctx.lineTo(
+                        player.x + player.width/2 + Math.cos(angle) * 40,
+                        player.y + player.height/2 + Math.sin(angle) * 40
+                    );
+                    ctx.stroke();
+                }
+            }
+            if (effects.some(e => e.type === 'shield')) {
+                ctx.strokeStyle = 'cyan';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(player.x + player.width/2, player.y + player.height/2, player.width * 1.5, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            if (effects.some(e => e.type === 'magnet')) {
+                ctx.strokeStyle = 'magenta';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(player.x + player.width/2, player.y + player.height/2, 80, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            drawParticles();
+        }
+
+        // Trophy road (sin cambios)
+        function drawTrophyRoad() {
+            roadCtx.clearRect(0, 0, roadCanvas.width, roadCanvas.height);
+            const progress = Math.min(1, totalTrophies / 50000) * roadCanvas.width;
+
+            roadCtx.fillStyle = '#4a90e2';
+            roadCtx.fillRect(0, 0, roadCanvas.width, roadCanvas.height);
+
+            roadCtx.fillStyle = '#ff9500';
+            roadCtx.fillRect(0, 30, progress, 20);
+
+            const milestones = [44900, 45000, 45200, 45400, 45500];
+            roadCtx.fillStyle = 'white';
+            roadCtx.font = '16px Arial Black';
+            roadCtx.textAlign = 'center';
+            for (let i = 0; i < milestones.length; i++) {
+                const x = (milestones[i] / 45500) * roadCanvas.width;
+                roadCtx.fillText('🏆', x, 50);
+                if (totalTrophies >= milestones[i]) {
+                    roadCtx.fillStyle = '#FFD700';
+                    roadCtx.font = 'bold 20px Arial Black';
+                    roadCtx.fillText('✓', x + 15, 55);
+                    roadCtx.fillStyle = 'white';
+                }
+            }
+
+            roadCtx.fillStyle = '#FFD700';
+            roadCtx.font = 'bold 20px Arial Black';
+            roadCtx.textAlign = 'left';
+            roadCtx.fillText(`Liga IV - ${totalTrophies} Trofeos`, 10, 20);
+            roadCtx.textAlign = 'right';
+            roadCtx.fillText('¡Sube de liga! 💥', roadCanvas.width - 10, 20);
+
+            roadCtx.textAlign = 'center';
+            roadCtx.font = '14px Arial';
+            roadCtx.fillStyle = 'white';
+            roadCtx.fillText('⚡ Velocidad', roadCanvas.width / 5, 90);
+            roadCtx.fillText('🛡️ Escudo', roadCanvas.width * 2/5, 90);
+            roadCtx.fillText('⚔️ Ataque', roadCanvas.width * 3/5, 90);
+            roadCtx.fillText('🧲 Imán', roadCanvas.width * 4/5, 90);
+        }
+
+        // End game (sin cambios)
+        function endGame(victory) {
+            if (!victory && currentTrophies > 0) {
+                totalTrophies = Math.max(0, totalTrophies - 1);
+                localStorage.setItem('gymAvoiderTotalTrophies', totalTrophies);
+            }
+            player.combo = 0;
+            gameState = 'gameover';
+            scoreDiv.style.display = 'none';
+            trophyRoadDiv.style.display = 'block';
+            drawTrophyRoad();
+            pauseButton.style.display = 'none';
+            controlsDiv.style.display = 'none';
+        }
+
+        // Loop
+        function gameLoop() {
+            if (gameState === 'playing') {
+                movePlayer();
+                moveChaser();
+                updateObstacles();
+                updateEnemies();
+                updateProjectiles();
+                checkPowerupCollision();
+                updateParticles();
+                updateScore();
+
+                if (checkCollision()) {
+                    // Handled
+                }
+
+                if (Math.random() < 0.003) spawnPowerup();
+                if (!effects.some(e => e.type === 'speed')) player.combo = Math.max(0, player.combo - 0.15);
+            }
+
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start
+        function startGame() {
+            gameState = 'playing';
+            score = 0;
+            currentTrophies = 0;
+            startTime = Date.now();
+            difficultyLevel = 1;
+            powerups = [];
+            enemies = [];
+            effects = [];
+            isBossFight = false;
+            obstacles = [];
+            extraChasers = [];
+            particles = [];
+            projectiles = [];
+            randomEvents = 0;
+            player.x = 100;
+            player.y = 100;
+            chaser.x = 700;
+            chaser.y = 500;
+            chaser.health = chaser.maxHealth;
+            player.combo = 0;
+            isPaused = false;
+            pauseButton.textContent = '⏸️ Pausa';
+            scoreDiv.style.display = 'block';
+            trophyRoadDiv.style.display = 'block';
+            startButton.style.display = 'none';
+            pauseButton.style.display = 'block';
+            controlsDiv.style.display = 'block';
+            drawTrophyRoad();
+            playSound(700, 0.6);
+        }
+
+        gameLoop();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

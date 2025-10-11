@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defensa Zombi - Estilo Plants vs Zombies</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        #juego {
+            width: 800px;
+            height: 400px;
+            border: 2px solid #34495e;
+            margin: 20px auto;
+            position: relative;
+            background-image: url('https://www.kindpng.com/picc/m/46-465185_grass-plants-vs-zombies-png-download-plants-vs.png');
+            background-repeat: repeat-x;
+            background-size: cover;
+            overflow: hidden;
+        }
+        .defensa {
+            position: absolute;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .defensa:hover {
+            transform: scale(1.1);
+        }
+        .zombi {
+            position: absolute;
+        }
+        .pea {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #27ae60;
+            border-radius: 50%;
+        }
+        .explode {
+            animation: explosion 0.5s ease-out forwards;
+        }
+        @keyframes explosion {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+                background-color: #e74c3c;
+            }
+            50% {
+                transform: scale(2);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+        .crack {
+            animation: crack 0.3s ease-in;
+        }
+        @keyframes crack {
+            0% { filter: none; }
+            100% { filter: brightness(0.5) contrast(1.5); }
+        }
+        #instrucciones {
+            margin-top: 20px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.seleccionado {
+            background-color: #27ae60;
+        }
+        button.powerup {
+            background-color: #f39c12;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        #puntuacion {
+            font-size: 24px;
+            color: #f39c12;
+        }
+        #ronda {
+            font-size: 20px;
+            color: #e74c3c;
+        }
+        #vidas {
+            font-size: 20px;
+            color: #e74c3c;
+        }
+        #plantas {
+            font-size: 18px;
+            color: #27ae60;
+        }
+        .defensa-selector {
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Defensa Zombi - Estilo Plants vs Zombies</h1>
+    <p>Selecciona una defensa y haz clic en el huerto para colocarla. ¡Prepara para la siguiente ronda!</p>
+    <div id="ronda">Ronda: 1</div>
+    <div id="vidas">Vidas: 5</div>
+    <div id="plantas">Plantas: 0 / 5</div>
+    <div class="defensa-selector">
+        <button id="pea-btn" onclick="selectDefense('pea')">Peashooter</button>
+        <button id="wall-btn" onclick="selectDefense('wall')">Wall-nut</button>
+        <button id="cherry-btn" onclick="selectDefense('cherry')">Cherry Bomb</button>
+    </div>
+    <div id="juego"></div>
+    <div id="puntuacion">Puntuación: 0</div>
+    <button id="start-btn" onclick="iniciarRonda()">Iniciar Ronda</button>
+    <button class="powerup" onclick="activarPowerUp()">Power Up: Congelar Zombis</button>
+    <button onclick="reiniciarJuego()">Reiniciar</button>
+    <div id="instrucciones">
+        <p>¡Coloca defensas (límite por ronda), las plantas atacan automáticamente! Las bolas verdes eliminan zombis al impactar. Cherry Bomb explota con animación. ¡Protege tus vidas!</p>
+    </div>
+
+    <script>
+        let puntuacion = 0;
+        let lives = 5;
+        let defensas = [];
+        let zombis = [];
+        let proyectiles = [];
+        let juegoActivo = false;
+        let currentDefense = 'pea';
+        let powerUpActive = false;
+        let currentRound = 1;
+        let maxPlants = 5;
+        let roundZombiePassed = false;
+
+        const defensasTypes = {
+            pea: {
+                src: 'https://www.clipartmax.com/png/middle/357-3574686_peashooter-pvz-clipart-plants-vs-plants-vs-zombies-pea.png',
+                width: 50,
+                height: 50,
+                health: 100,
+                shoot: true,
+                shootInterval: 1500,
+                damage: 100
+            },
+            wall: {
+                src: 'https://www.clipartmax.com/png/middle/212-2128219_plants-vs-zombies-2-wallnut-the-wallnut-by-illustation16-potato-plants-vs.png',
+                width: 50,
+                height: 50,
+                health: 400,
+                shoot: false
+            },
+            cherry: {
+                src: 'https://www.clipartmax.com/png/middle/24-247868_plants-vs-zombies-cherry-bomb.png',
+                width: 50,
+                height: 50,
+                health: 50,
+                shoot: false,
+                explosionDamage: 100,
+                explosionRange: 100
+            }
+        };
+
+        const zombieTypes = [
+            {
+                src: 'https://www.pngkey.com/png/detail/13-131493_zombie-png-plants-vs-zombies-zombie.png',
+                width: 40,
+                height: 60,
+                health: 100,
+                score: 50
+            },
+            {
+                src: 'https://static.wikia.nocookie.net/plantsvszombies/images/2/26/ConeHead_Zombie.png/revision/latest?cb=20201226144523',
+                width: 40,
+                height: 60,
+                health: 200,
+                score: 75
+            },
+            {
+                src: 'https://www.seekpng.com/png/detail/11-112260_buckethead-zombie-plants-vs-zombies-png.png',
+                width: 40,
+                height: 60,
+                health: 400,
+                score: 100
+            },
+            {
+                src: 'https://www.clipartmax.com/png/middle/23-233525_newspaper-zombie-pvz2-hd-pvz-2-newspaper-zombie.png',
+                width: 40,
+                height: 60,
+                health: 150,
+                score: 60
+            }
+        ];
+
+        const juego = document.getElementById('juego');
+        const puntuacionEl = document.getElementById('puntuacion');
+        const rondaEl = document.getElementById('ronda');
+        const vidasEl = document.getElementById('vidas');
+        const plantasEl = document.getElementById('plantas');
+        const startBtn = document.getElementById('start-btn');
+        const instruccionesEl = document.getElementById('instrucciones');
+
+        function updateVidasDisplay() {
+            vidasEl.textContent = 'Vidas: ' + lives;
+        }
+
+        function updatePlantasDisplay() {
+            plantasEl.textContent = 'Plantas: ' + defensas.length + ' / ' + maxPlants;
+        }
+
+        function gameOver() {
+            juegoActivo = false;
+            startBtn.disabled = true;
+            startBtn.textContent = 'Game Over';
+            instruccionesEl.innerHTML = '<p>¡La partida ha terminado! Haz clic en Reiniciar para empezar de nuevo.</p>';
+        }
+
+        function selectDefense(type) {
+            currentDefense = type;
+            document.querySelectorAll('.defensa-selector button').forEach(btn => btn.classList.remove('seleccionado'));
+            document.getElementById(type + '-btn').classList.add('seleccionado');
+        }
+
+        // Colocar defensa al hacer clic
+        juego.addEventListener('click', function(event) {
+            if (juegoActivo || defensas.length >= maxPlants || lives <= 0) return;
+            const rect = juego.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            const type = defensasTypes[currentDefense];
+            const defensa = document.createElement('img');
+            defensa.src = type.src;
+            defensa.className = 'defensa';
+            defensa.style.width = type.width + 'px';
+            defensa.style.height = type.height + 'px';
+            defensa.style.left = (x - type.width / 2) + 'px';
+            defensa.style.top = (y - type.height / 2) + 'px';
+            defensa.onclick = function(e) { e.stopPropagation(); };
+            juego.appendChild(defensa);
+            const planta = { x: x, y: y, elemento: defensa, type: type, defenseType: currentDefense, health: type.health, shootingInterval: null };
+            defensas.push(planta);
+            if (type.shoot) {
+                planta.shootingInterval = setInterval(() => crearProyectil(planta), type.shootInterval);
+            }
+            updatePlantasDisplay();
+        });
+
+        function crearProyectil(planta) {
+            if (!juegoActivo) return;
+            const proyectil = document.createElement('div');
+            proyectil.className = 'pea';
+            proyectil.style.left = (planta.x + planta.type.width / 2) + 'px';
+            proyectil.style.top = (planta.y + 20) + 'px';
+            juego.appendChild(proyectil);
+            const pea = { elemento: proyectil, x: planta.x + planta.type.width / 2, y: planta.y + 20, speed: 5, damage: planta.type.damage };
+            proyectiles.push(pea);
+            moverProyectil(pea);
+        }
+
+        function moverProyectil(pea) {
+            const interval = setInterval(() => {
+                pea.x += pea.speed;
+                pea.elemento.style.left = pea.x + 'px';
+                if (pea.x > 800) {
+                    clearInterval(interval);
+                    if (pea.elemento.parentNode) {
+                        pea.elemento.parentNode.removeChild(pea.elemento);
+                    }
+                    proyectiles = proyectiles.filter(p => p !== pea);
+                    return;
+                }
+                // Check collision with zombies
+                for (let i = zombis.length - 1; i >= 0; i--) {
+                    const z = zombis[i];
+                    if (Math.abs(pea.x - (z.x + z.type.width / 2)) < 20 && Math.abs(pea.y - (z.y + z.type.height / 2)) < 20) {
+                        z.health -= pea.damage;
+                        if (z.health <= 0) {
+                            if (z.elemento.parentNode) {
+                                z.elemento.parentNode.removeChild(z.elemento);
+                            }
+                            zombis.splice(i, 1);
+                            puntuacion += z.score;
+                            puntuacionEl.textContent = 'Puntuación: ' + puntuacion;
+                        }
+                        clearInterval(interval);
+                        if (pea.elemento.parentNode) {
+                            pea.elemento.parentNode.removeChild(pea.elemento);
+                        }
+                        proyectiles = proyectiles.filter(p => p !== pea);
+                        break;
+                    }
+                }
+            }, 20);
+        }
+
+        function iniciarRonda() {
+            if (defensas.length === 0 || lives <= 0) {
+                alert('¡Coloca al menos una defensa primero o ¡Game Over!');
+                return;
+            }
+            roundZombiePassed = false;
+            juegoActivo = true;
+            startBtn.disabled = true;
+            startBtn.textContent = 'Ronda en Progreso...';
+            // Dificultad aleatoria
+            const baseZombies = currentRound + 2;
+            const variation = Math.floor(Math.random() * (currentRound + 1));
+            const numZombies = baseZombies + (Math.random() < 0.5 ? -variation : variation);
+            for (let i = 0; i < numZombies; i++) {
+                setTimeout(() => crearZombi(), i * 800);
+            }
+            verificarFinRonda();
+        }
+
+        function verificarFinRonda() {
+            const checkInterval = setInterval(() => {
+                if (zombis.length === 0 && !juegoActivo) return;
+                if (zombis.length === 0) {
+                    clearInterval(checkInterval);
+                    juegoActivo = false;
+                    if (!roundZombiePassed && lives < 10) { // Máximo 10 vidas
+                        lives++;
+                        updateVidasDisplay();
+                    }
+                    currentRound++;
+                    maxPlants += 3;
+                    rondaEl.textContent = 'Ronda: ' + currentRound;
+                    updatePlantasDisplay();
+                    startBtn.disabled = false;
+                    startBtn.textContent = 'Siguiente Ronda';
+                    alert('¡Ronda ' + (currentRound - 1) + ' completada! Ahora puedes colocar hasta ' + maxPlants + ' plantas.');
+                }
+            }, 500);
+        }
+
+        function crearZombi() {
+            const zType = zombieTypes[Math.floor(Math.random() * zombieTypes.length)];
+            const zombi = document.createElement('img');
+            zombi.src = zType.src;
+            zombi.className = 'zombi';
+            zombi.style.width = zType.width + 'px';
+            zombi.style.height = zType.height + 'px';
+            zombi.style.left = '800px';
+            zombi.style.top = (Math.random() * (400 - zType.height)) + 'px';
+            juego.appendChild(zombi);
+            const zombie = { elemento: zombi, type: zType, x: 800, y: parseFloat(zombi.style.top), health: zType.health, score: zType.score, speed: powerUpActive ? 1 : 2 };
+            zombis.push(zombie);
+
+            // Move zombie
+            const moveInterval = setInterval(() => {
+                if (!zombi.parentNode) {
+                    clearInterval(moveInterval);
+                    return;
+                }
+                zombie.x -= zombie.speed;
+                zombi.style.left = zombie.x + 'px';
+                if (zombie.x < -50) {
+                    if (zombi.parentNode) {
+                        zombi.parentNode.removeChild(zombi);
+                    }
+                    zombis = zombis.filter(z => z !== zombie);
+                    roundZombiePassed = true;
+                    lives--;
+                    updateVidasDisplay();
+                    if (lives <= 0) {
+                        gameOver();
+                    }
+                    clearInterval(moveInterval);
+                    return;
+                }
+
+                // Check collision with plants
+                for (let j = defensas.length - 1; j >= 0; j--) {
+                    const planta = defensas[j];
+                    if (Math.abs(zombie.x - planta.x) < 30 && Math.abs(zombie.y - planta.y) < 30) {
+                        // Damage plant
+                        planta.health -= 10;
+                        if (planta.defenseType === 'wall' && planta.health < 200) {
+                            planta.elemento.classList.add('crack');
+                        }
+                        if (planta.health <= 0) {
+                            if (planta.defenseType === 'cherry') {
+                                // Animación de explosión
+                                planta.elemento.classList.add('explode');
+                                setTimeout(() => {
+                                    explotar(planta.x, planta.y);
+                                    if (planta.elemento.parentNode) {
+                                        planta.elemento.parentNode.removeChild(planta.elemento);
+                                    }
+                                    defensas.splice(j, 1);
+                                    updatePlantasDisplay();
+                                }, 500);
+                            } else {
+                                if (planta.elemento.parentNode) {
+                                    planta.elemento.parentNode.removeChild(planta.elemento);
+                                }
+                                if (planta.shootingInterval) {
+                                    clearInterval(planta.shootingInterval);
+                                }
+                                defensas.splice(j, 1);
+                                updatePlantasDisplay();
+                            }
+                        } else {
+                            // Zombie dañado por colisión con wall
+                            zombie.health -= 5;
+                            if (zombie.health <= 0) {
+                                if (zombi.parentNode) {
+                                    zombi.parentNode.removeChild(zombi);
+                                }
+                                zombis = zombis.filter(z => z !== zombie);
+                                puntuacion += zombie.score;
+                                puntuacionEl.textContent = 'Puntuación: ' + puntuacion;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }, 50);
+        }
+
+        function explotar(x, y) {
+            // Crear efecto visual de explosión
+            const explosion = document.createElement('div');
+            explosion.style.position = 'absolute';
+            explosion.style.left = x + 'px';
+            explosion.style.top = y + 'px';
+            explosion.style.width = '50px';
+            explosion.style.height = '50px';
+            explosion.style.backgroundColor = '#e74c3c';
+            explosion.style.borderRadius = '50%';
+            explosion.style.transform = 'scale(0)';
+            explosion.classList.add('explode');
+            juego.appendChild(explosion);
+            setTimeout(() => explosion.remove(), 500);
+
+            for (let i = zombis.length - 1; i >= 0; i--) {
+                const z = zombis[i];
+                const dist = Math.sqrt(Math.pow(z.x - x, 2) + Math.pow(z.y - y, 2));
+                if (dist < defensasTypes.cherry.explosionRange) {
+                    z.health -= defensasTypes.cherry.explosionDamage;
+                    if (z.health <= 0) {
+                        if (z.elemento.parentNode) {
+                            z.elemento.parentNode.removeChild(z.elemento);
+                        }
+                        zombis.splice(i, 1);
+                        puntuacion += z.score;
+                        puntuacionEl.textContent = 'Puntuación: ' + puntuacion;
+                    }
+                }
+            }
+        }
+
+        function activarPowerUp() {
+            if (lives <= 0) return;
+            powerUpActive = true;
+            setTimeout(() => powerUpActive = false, 10000);
+            zombis.forEach(z => z.speed = 1);
+            alert('¡Power Up activado! Zombis más lentos por 10 segundos.');
+        }
+
+        function reiniciarJuego() {
+            defensas.forEach(d => {
+                if (d.elemento.parentNode) d.elemento.remove();
+                if (d.shootingInterval) clearInterval(d.shootingInterval);
+            });
+            zombis.forEach(z => {
+                if (z.elemento.parentNode) z.elemento.remove();
+            });
+            proyectiles.forEach(p => {
+                if (p.elemento.parentNode) p.elemento.remove();
+            });
+            defensas = [];
+            zombis = [];
+            proyectiles = [];
+            puntuacion = 0;
+            lives = 5;
+            currentRound = 1;
+            maxPlants = 5;
+            roundZombiePassed = false;
+            rondaEl.textContent = 'Ronda: 1';
+            updateVidasDisplay();
+            updatePlantasDisplay();
+            puntuacionEl.textContent = 'Puntuación: 0';
+            juegoActivo = false;
+            powerUpActive = false;
+            startBtn.disabled = false;
+            startBtn.textContent = 'Iniciar Ronda';
+            startBtn.onclick = iniciarRonda;
+            instruccionesEl.innerHTML = '<p>¡Coloca defensas (límite por ronda), las plantas atacan automáticamente! Las bolas verdes eliminan zombis al impactar. Cherry Bomb explota con animación. ¡Protege tus vidas!</p>';
+            selectDefense('pea');
+        }
+
+        // Inicializar display
+        updateVidasDisplay();
+        updatePlantasDisplay();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suika Game - El Verdadero</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body { margin: 0; background: #f0f0f0; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; }
+        #game { border: 2px solid #333; }
+        .instructions { position: absolute; top: 10px; left: 10px; color: #333; background: rgba(255,255,255,0.8); padding: 10px; border-radius: 5px; max-width: 300px; }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <h3>Suika Game</h3>
+        <p><strong>Cómo jugar esta versión:</strong></p>
+        <p>Controles: Usa las teclas A (mover izquierda), D (mover derecha) y S (soltar y dejar caer la fruta).</p>
+        <p>Las frutas caen desde arriba y se fusionan automáticamente al tocar 2 iguales (creando una más grande).</p>
+        <p>Solo caen las 5 frutas iniciales al azar (cereza, fresa, uva, naranja, caqui).</p>
+        <p>Objetivo: Crea sandías (watermelons) lo más grande posible sin que las frutas suban por encima de la línea roja superior. Si tocan la línea, ¡game over!</p>
+        <p>Si fusionas 2 sandías, desaparecen (como en el original).</p>
+        <p>Ganas un "win" temporal si creas 2 sandías, pero sigue jugando por puntuación (aquí no hay leaderboard, pero suma mentalmente)</p>
+    </div>
+    <div id="game"></div>
+
+    <script>
+        const FRUITS_BASE = [
+            { name: 'cherry', radius: 10, image: 'https://img.icons8.com/color/48/cherry.png' },
+            { name: 'strawberry', radius: 15, image: 'https://img.icons8.com/color/48/strawberry.png' },
+            { name: 'grape', radius: 20, image: 'https://img.icons8.com/color/48/grapes.png' },
+            { name: 'dekopon', radius: 25, image: 'https://img.icons8.com/color/48/orange.png' },
+            { name: 'persimmon', radius: 30, image: 'https://img.icons8.com/color/48/pomegranate.png' },
+            { name: 'apple', radius: 35, image: 'https://img.icons8.com/color/48/apple.png' },
+            { name: 'pear', radius: 40, image: 'https://img.icons8.com/color/48/pear.png' },
+            { name: 'peach', radius: 45, image: 'https://img.icons8.com/color/48/peach.png' },
+            { name: 'pineapple', radius: 50, image: 'https://img.icons8.com/color/48/pineapple.png' },
+            { name: 'melon', radius: 55, image: 'https://img.icons8.com/color/48/honeydew.png' },
+            { name: 'watermelon', radius: 60, image: 'https://img.icons8.com/color/48/watermelon.png' }
+        ];
+
+        function createWorld() {
+            const engine = Matter.Engine.create();
+            const render = Matter.Render.create({
+                element: document.getElementById('game'),
+                engine: engine,
+                options: {
+                    wireframes: false,
+                    background: '#F7F4C8',
+                    width: 400,
+                    height: 600
+                }
+            });
+
+            const world = engine.world;
+
+            // Paredes y suelo ajustados al nuevo tamaño
+            const leftWall = Matter.Bodies.rectangle(15, 300, 30, 590, {
+                isStatic: true,
+                render: { fillStyle: '#E6B143' }
+            });
+            const rightWall = Matter.Bodies.rectangle(385, 300, 30, 590, {
+                isStatic: true,
+                render: { fillStyle: '#E6B143' }
+            });
+            const topLine = Matter.Bodies.rectangle(200, 100, 400, 2, {
+                name: 'topLine',
+                isStatic: true,
+                isSensor: true,
+                render: { fillStyle: '#FF0000' } // Línea roja para game over
+            });
+            const ground = Matter.Bodies.rectangle(200, 570, 400, 60, {
+                isStatic: true,
+                render: { fillStyle: '#E6B143' }
+            });
+
+            Matter.World.add(world, [leftWall, rightWall, ground, topLine]);
+            Matter.Render.run(render);
+
+            const runner = Matter.Runner.create();
+            Matter.Runner.run(runner, engine);
+
+            let currentBody = null;
+            const IMAGE_SIZE = 48; // Tamaño base de las imágenes de icons8
+            let currentFruit = null;
+            let disableAction = false;
+            let interval = null;
+            let num_suika = 0;
+
+            function addFruit() {
+                const index = Math.floor(Math.random() * 5);
+                const fruit = FRUITS_BASE[index];
+                const scale = (fruit.radius * 2 / IMAGE_SIZE);
+                const body = Matter.Bodies.circle(200, 50, fruit.radius, {
+                    index: index,
+                    isSleeping: true,
+                    render: { 
+                        sprite: { 
+                            texture: fruit.image,
+                            xScale: scale,
+                            yScale: scale
+                        } 
+                    },
+                    restitution: 0.2
+                });
+                currentBody = body;
+                currentFruit = fruit;
+                Matter.World.add(world, body);
+            }
+
+            // Controles de teclado ajustados al nuevo ancho
+            window.onkeydown = (event) => {
+                if (disableAction) return;
+                switch (event.code) {
+                    case 'KeyA': // Izquierda
+                        if (interval) return;
+                        interval = setInterval(() => {
+                            if (currentBody.position.x - currentFruit.radius > 20)
+                                Matter.Body.setPosition(currentBody, { x: currentBody.position.x - 1, y: currentBody.position.y });
+                        }, 5);
+                        break;
+                    case 'KeyD': // Derecha
+                        if (interval) return;
+                        interval = setInterval(() => {
+                            if (currentBody.position.x + currentFruit.radius < 380)
+                                Matter.Body.setPosition(currentBody, { x: currentBody.position.x + 1, y: currentBody.position.y });
+                        }, 5);
+                        break;
+                    case 'KeyS': // Soltar
+                        Matter.Body.setStatic(currentBody, false);
+                        currentBody.isSleeping = false;
+                        disableAction = true;
+                        setTimeout(() => {
+                            addFruit();
+                            disableAction = false;
+                        }, 1200);
+                        break;
+                }
+            };
+
+            window.onkeyup = (event) => {
+                switch (event.code) {
+                    case 'KeyA':
+                    case 'KeyD':
+                        clearInterval(interval);
+                        interval = null;
+                        break;
+                }
+            };
+
+            // Detección de colisiones
+            Matter.Events.on(engine, 'collisionStart', (event) => {
+                event.pairs.forEach((collision) => {
+                    const bodyA = collision.bodyA;
+                    const bodyB = collision.bodyB;
+
+                    // Game over si toca la línea superior
+                    if (!disableAction && (bodyA.name === 'topLine' || bodyB.name === 'topLine')) {
+                        alert('¡Game Over! Presiona F5 para reiniciar.');
+                        return;
+                    }
+
+                    // Fusión si son iguales
+                    if (bodyA.index === bodyB.index && bodyA.index !== undefined && bodyB.index !== undefined) {
+                        const index = bodyA.index;
+                        if (index < FRUITS_BASE.length - 1) {
+                            // Fusionar a siguiente
+                            Matter.World.remove(world, [bodyA, bodyB]);
+                            const newFruit = FRUITS_BASE[index + 1];
+                            const scale = (newFruit.radius * 2 / IMAGE_SIZE);
+                            const newBody = Matter.Bodies.circle(
+                                collision.collision.supports[0].x,
+                                collision.collision.supports[0].y,
+                                newFruit.radius,
+                                {
+                                    render: { 
+                                        sprite: { 
+                                            texture: newFruit.image,
+                                            xScale: scale,
+                                            yScale: scale
+                                        } 
+                                    },
+                                    index: index + 1
+                                }
+                            );
+                            Matter.World.add(world, newBody);
+                            if (newBody.index === 10) {
+                                num_suika++;
+                                if (num_suika >= 2) {
+                                    alert('¡Ganaste! Creaste 2 sandías. Presiona F5 para reiniciar.');
+                                }
+                            }
+                        } else if (index === 10) {
+                            // 2 sandías: desaparecen
+                            Matter.World.remove(world, [bodyA, bodyB]);
+                        }
+                    }
+                });
+            });
+
+            // Iniciar con primera fruta
+            addFruit();
+        }
+
+        // Ejecutar el juego
+        createWorld();
+    </script>
+    <!-- Agrega este snippet al final de cada archivo HTML de juego, justo antes de </body> -->
+<!-- No modifica la lógica del juego, solo añade un botón fijo en la esquina inferior derecha -->
+<div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+    <a href="MENU.html" style="background: linear-gradient(45deg, #00c6ff, #0072ff); color: white; border: none; padding: 12px 18px; border-radius: 25px; cursor: pointer; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-decoration: none; font-weight: bold;">🏠 Volver al Menú</a>
+</div>
+</body>
+</html>
